@@ -405,6 +405,7 @@ namespace Bridge.Translator
 
 
                 this.Write("; };func.$typeArguments = [");
+                this.Emitter.Comma = false;
 
                 foreach (var p in typeDef.GenericParameters)
                 {
@@ -414,7 +415,7 @@ namespace Bridge.Translator
                     this.Write("\"");
                     this.Emitter.Comma = true;
                 }
-                this.Emitter.Comma = false;
+                this.Emitter.Comma = true;
                 this.Write("];return func;})()");
             }
 
