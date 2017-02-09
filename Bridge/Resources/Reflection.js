@@ -70,11 +70,9 @@
         },
 
         createTypeParams: function (fn, t) {
-            var args,
-                names = [],
-                fnStr = fn.toString();
+            var args = fn.$typeArguments,
+                names = [];
 
-            args = fnStr.slice(fnStr.indexOf('(') + 1, fnStr.indexOf(')')).match(/([^\s,]+)/g) || [];
             for (var i = 0; i < args.length; i++) {
                 names.push(Bridge.Reflection.createTypeParam(args[i], t));
             }

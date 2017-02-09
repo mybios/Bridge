@@ -1,4 +1,4 @@
-    Bridge.define('System.Collections.Generic.Comparer$1', function (T) {
+    Bridge.define('System.Collections.Generic.Comparer$1', (function(){var func = function (T) {
         return {
             inherits: [System.Collections.Generic.IComparer$1(T)],
 
@@ -9,7 +9,7 @@
                 this["System$Collections$Generic$IComparer$1$" + Bridge.getTypeAlias(T) + "$compare"] = fn;
             }
         }
-    });
+    };func.$typeArguments = ["T"];return func;})());
 
     System.Collections.Generic.Comparer$1.$default = new (System.Collections.Generic.Comparer$1(Object))(function (x, y) {
         if (!Bridge.hasValue(x)) {

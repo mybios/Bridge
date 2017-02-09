@@ -33,7 +33,7 @@
         $kind: "interface"
     });
 
-    Bridge.define('System.IComparable$1', function (T) {
+    Bridge.define('System.IComparable$1', (function(){var func = function (T) {
         return {
             $kind: "interface",
 
@@ -47,9 +47,9 @@
                 }
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());
 
-    Bridge.define('System.IEquatable$1', function (T) {
+    Bridge.define('System.IEquatable$1', (function(){var func = function (T) {
         return {
             $kind: "interface",
 
@@ -63,7 +63,7 @@
                 }
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());
 
     Bridge.define("Bridge.IPromise", {
         $kind: "interface"
