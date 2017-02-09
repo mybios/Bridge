@@ -517,6 +517,6 @@
     System.Decimal.Zero = System.Decimal(0);
     System.Decimal.One = System.Decimal(1);
     System.Decimal.MinusOne = System.Decimal(-1);
-    //System.Decimal.MinValue = System.Decimal("-79228162514264337593543950335");
-    //System.Decimal.MaxValue = System.Decimal("79228162514264337593543950335");
+    System.Decimal.MinValue = System.Decimal("-79228162514264337593543950335");
+    System.Decimal.MaxValue = System.Decimal("79228162514264337593543950335");
     System.Decimal.precision = 29;

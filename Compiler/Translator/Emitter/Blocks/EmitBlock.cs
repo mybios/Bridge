@@ -400,26 +400,39 @@ namespace Bridge.Translator
                 {
                     var metaData = meta.Value;
                     string typeArgs = "";
+                    string typeStringArgs = "";
 
                     if (meta.Key.TypeArguments.Count > 0 && !Helpers.IsIgnoreGeneric(meta.Key, this.Emitter))
                     {
                         StringBuilder arr_sb = new StringBuilder();
+                        StringBuilder arr_sb2 = new StringBuilder();
                         var comma = false;
                         foreach (var typeArgument in meta.Key.TypeArguments)
                         {
                             if (comma)
                             {
                                 arr_sb.Append(", ");
+                                arr_sb2.Append(", ");
                             }
 
                             arr_sb.Append(typeArgument.Name);
+                            arr_sb2.Append("\"" + typeArgument.Name + "\"");
                             comma = true;
                         }
 
                         typeArgs = arr_sb.ToString();
+                        typeStringArgs = arr_sb2.ToString();
                     }
 
-                    this.Write(string.Format("$m({0}, function ({2}) {{ return {1}; }});", MetadataUtils.GetTypeName(meta.Key, this.Emitter, false, true), metaData.ToString(Formatting.None), typeArgs));
+                    if (typeArgs != "")
+                    {
+                        this.Write(string.Format("$m({0}, (function(){{var func = function ({2}) {{ return {1}; }};func.$typeArguments = [{3}];return func;}})());", MetadataUtils.GetTypeName(meta.Key, this.Emitter, false, true), metaData.ToString(Formatting.None), typeArgs , typeStringArgs));
+                    }
+                    else
+                    {
+                        this.Write(string.Format("$m({0}, function ({2}) {{ return {1}; }});", MetadataUtils.GetTypeName(meta.Key, this.Emitter, false, true), metaData.ToString(Formatting.None), typeArgs));
+                    }
+                    
                     this.WriteNewLine();
                 }
 
