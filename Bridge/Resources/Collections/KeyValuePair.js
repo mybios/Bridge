@@ -1,4 +1,4 @@
-    Bridge.define('System.Collections.Generic.KeyValuePair$2', function (TKey, TValue) {
+    Bridge.define('System.Collections.Generic.KeyValuePair$2', (function(){var func = function (TKey, TValue) {
         return {
             $kind: "struct",
 
@@ -40,4 +40,4 @@
                 return s;
             }
         };
-    });
+    };func.$typeArguments = ["TKey", "TValue"];return func;})());

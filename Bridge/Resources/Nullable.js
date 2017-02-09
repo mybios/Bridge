@@ -177,7 +177,7 @@
 
     System.Nullable = nullable;
 
-    Bridge.define('System.Nullable$1', function (T) {
+    Bridge.define('System.Nullable$1', (function(){var func = function (T) {
         return {
             $kind: "struct",
 
@@ -193,4 +193,4 @@
                 }
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());

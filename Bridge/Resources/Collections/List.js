@@ -1,4 +1,4 @@
-    Bridge.define('System.Collections.Generic.List$1', function (T) {
+    Bridge.define('System.Collections.Generic.List$1', (function(){var func = function (T) {
         return {
             inherits: [System.Collections.Generic.IList$1(T), System.Collections.IList],
 
@@ -330,9 +330,9 @@
                 return list;
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());
 
-    Bridge.define('System.Collections.ObjectModel.ReadOnlyCollection$1', function (T) {
+    Bridge.define('System.Collections.ObjectModel.ReadOnlyCollection$1', (function(){var func = function (T) {
         return {
             inherits: [System.Collections.Generic.List$1(T), System.Collections.Generic.IReadOnlyList$1(T)],
             ctor: function (list) {
@@ -357,4 +357,4 @@
                 }
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());

@@ -1,4 +1,5 @@
-    var check = function (regex) {
+/*
+	var check = function (regex) {
             return regex.test(navigator.userAgent.toLowerCase());
         },
 
@@ -120,3 +121,4 @@
     };
 
     Bridge.Browser = browser;
+*/
