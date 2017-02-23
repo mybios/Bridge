@@ -133,8 +133,13 @@ namespace Bridge.Translator
                 }
 
                 this.Validator.CheckType(type, this);
-                this.TypeDefinitions.Add(BridgeTypes.GetTypeDefinitionKey(type), type);
                 string key = BridgeTypes.GetTypeDefinitionKey(type);
+                if(TypeDefinitions.ContainsKey(key))
+                {
+                    throw new System.Exception("Type name repeated : " + key);
+                }
+                this.TypeDefinitions.Add(BridgeTypes.GetTypeDefinitionKey(type), type);
+                
                 this.BridgeTypes.Add(key, new BridgeType(key)
                 {
                     TypeDefinition = type

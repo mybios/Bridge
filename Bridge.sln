@@ -92,6 +92,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bridge.Aspect.Plugin", "Bridge.Aspect.Plugin\Bridge.Aspect.Plugin.csproj", "{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bridge.Aspect", "Bridge.Aspect\Bridge.Aspect.csproj", "{0680493E-608D-4384-9999-AB20FC429CDF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C} = {C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -168,13 +171,15 @@ Global
 		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Debug|Any CPU.ActiveCfg = Debug|x86
 		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Debug|x86.ActiveCfg = Debug|x86
 		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Debug|x86.Build.0 = Debug|x86
-		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Release|Any CPU.ActiveCfg = Release|x86
+		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Release|x86.ActiveCfg = Release|x86
 		{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}.Release|x86.Build.0 = Release|x86
 		{0680493E-608D-4384-9999-AB20FC429CDF}.Debug|Any CPU.ActiveCfg = Debug|x86
 		{0680493E-608D-4384-9999-AB20FC429CDF}.Debug|x86.ActiveCfg = Debug|x86
 		{0680493E-608D-4384-9999-AB20FC429CDF}.Debug|x86.Build.0 = Debug|x86
-		{0680493E-608D-4384-9999-AB20FC429CDF}.Release|Any CPU.ActiveCfg = Release|x86
+		{0680493E-608D-4384-9999-AB20FC429CDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0680493E-608D-4384-9999-AB20FC429CDF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0680493E-608D-4384-9999-AB20FC429CDF}.Release|x86.ActiveCfg = Release|x86
 		{0680493E-608D-4384-9999-AB20FC429CDF}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
