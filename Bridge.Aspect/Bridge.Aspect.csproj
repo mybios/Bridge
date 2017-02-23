@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <ProjectType>local</ProjectType>
+    <ProjectVersion>7.10.377</ProjectVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{0680493E-608D-4384-9999-AB20FC429CDF}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <AssemblyName>Bridge.Aspect</AssemblyName>
+    <OutputType>Library</OutputType>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <NoStdLib>True</NoStdLib>
+    <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
+    <AdditionalExplicitAssemblyReferences />
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Reference Include="Bridge">
+      <HintPath>..\Bridge\bin\Release\Bridge.dll</HintPath>
+    </Reference>
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="Global.cs" />
+    <Compile Include="Bridge\Aspect\AbstractMethodAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\MethodAspectEventArgs.cs" />
+    <Compile Include="Bridge\Aspect\AspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\AspectFlow.cs" />
+    <Compile Include="Bridge\Aspect\MethodAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\BufferedMethodAttribute.cs" />
+    <Compile Include="Bridge\Aspect\BarrierMethodAttribute.cs" />
+    <Compile Include="Bridge\Aspect\DelayedMethodAttribute.cs" />
+    <Compile Include="Bridge\Aspect\ThrottledMethodAttribute.cs" />
+    <Compile Include="Bridge\Aspect\MulticastAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\MulticastAttributes.cs" />
+    <Compile Include="Bridge\Aspect\MulticastInheritance.cs" />
+    <Compile Include="Bridge\Aspect\MulticastOptionsAttribute.cs" />
+    <Compile Include="Bridge\Aspect\NotifyPropertyChangedAttribute.cs" />
+    <Compile Include="Bridge\Aspect\IgnoreAutoChangeNotificationAttribute.cs" />
+    <Compile Include="Bridge\Aspect\NotificationDependencyAttribute.cs" />
+    <Compile Include="Bridge\Aspect\NotifyPropertyChangedAspectEventArgs.cs" />
+    <Compile Include="Bridge\Aspect\ParameterAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\ParameterContractAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\CreditCardAttribute.cs" />
+    <Compile Include="Bridge\Aspect\EmailAttribute.cs" />
+    <Compile Include="Bridge\Aspect\UrlAttribute.cs" />
+    <Compile Include="Bridge\Aspect\GreaterThanAttribute.cs" />
+    <Compile Include="Bridge\Aspect\LessThanAttribute.cs" />
+    <Compile Include="Bridge\Aspect\NotEmptyAttribute.cs" />
+    <Compile Include="Bridge\Aspect\NotNullAttribute.cs" />
+    <Compile Include="Bridge\Aspect\PositiveAttribute.cs" />
+    <Compile Include="Bridge\Aspect\NegativeAttribute.cs" />
+    <Compile Include="Bridge\Aspect\RangeAttribute.cs" />
+    <Compile Include="Bridge\Aspect\RequiredAttribute.cs" />
+    <Compile Include="Bridge\Aspect\LengthAttribute.cs" />
+    <Compile Include="Bridge\Aspect\RegularExpressionAttribute.cs" />
+    <Compile Include="Bridge\Aspect\ValidatorAttribute.cs" />
+    <Compile Include="Bridge\Aspect\IParameterValidator.cs" />
+    <Compile Include="Bridge\Aspect\ParameterAspectEventArgs.cs" />
+    <Compile Include="Bridge\Aspect\FieldAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\FieldAspectEventArgs.cs" />
+    <Compile Include="Bridge\Aspect\PropertyAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\PropertyAspectEventArgs.cs" />
+    <Compile Include="Bridge\Aspect\TypeAspectAttribute.cs" />
+    <Compile Include="Bridge\Aspect\TypeAspectEventArgs.cs" />
+    <EmbeddedResource Include="Bridge.Aspect.Resources.bridge.aspect.js" />
+    <EmbeddedResource Include="Bridge.Resources.list" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Bridge.Plugins.Bridge.Aspect.Plugin.dll" />
+  </ItemGroup>
+</Project>

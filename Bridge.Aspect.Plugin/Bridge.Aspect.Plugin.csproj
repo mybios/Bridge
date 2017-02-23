@@ -1,0 +1,73 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <ProjectType>local</ProjectType>
+    <ProjectVersion>7.10.377</ProjectVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{C29FF74E-782B-4E3F-BE30-B5542D9CFF7C}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <AssemblyName>Bridge.Plugins.Bridge.Aspect.Plugin</AssemblyName>
+    <OutputType>Library</OutputType>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Reference Include="ICSharpCode.NRefactory">
+      <HintPath>..\Compiler\Builder\bin\Release\ICSharpCode.NRefactory.dll</HintPath>
+    </Reference>
+    <Reference Include="Bridge.Contract">
+      <HintPath>..\Compiler\Contract\bin\Release\Bridge.Contract.dll</HintPath>
+    </Reference>
+    <Reference Include="Mono.Cecil">
+      <HintPath>..\Compiler\Builder\bin\Release\Mono.Cecil.dll</HintPath>
+    </Reference>
+    <Reference Include="ICSharpCode.NRefactory.CSharp">
+      <HintPath>..\Compiler\Builder\bin\Release\ICSharpCode.NRefactory.CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="Bridge.Licensing">
+      <HintPath>.\Bridge.Licensing.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="System" />
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="Global.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\AspectHelpers.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\AspectInfo.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\AspectCollection.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\AbstractAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\ConstructorAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\MethodAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\NotifyPropertyChangedAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\ParameterAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\FieldAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\PropertyAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\TypeAspectBlock.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\AspectPlugin.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\TranslatorMulticastAttributes.cs" />
+    <Compile Include="Bridge\Aspect\Plugin\TranslatorMulticastInheritance.cs" />
+    <EmbeddedResource Include="Bridge.Licensing.dll" />
+  </ItemGroup>
+</Project>
