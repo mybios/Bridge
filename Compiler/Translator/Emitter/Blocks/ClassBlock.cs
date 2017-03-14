@@ -140,6 +140,7 @@ namespace Bridge.Translator
 
             if (this.IsGeneric)
             {
+                this.Write("(function(){var func = ");
                 this.WriteFunction();
                 this.WriteOpenParentheses();
 
@@ -402,7 +403,24 @@ namespace Bridge.Translator
 
             if (this.IsGeneric)
             {
-                this.Write("; }");
+
+                var typeDef = this.Emitter.GetTypeDefinition();
+
+
+
+                this.Write("; };func.$typeArguments = [");
+                this.Emitter.Comma = false;
+
+                foreach (var p in typeDef.GenericParameters)
+                {
+                    this.EnsureComma(false);
+                    this.Write("\"");
+                    this.Write(p.Name);
+                    this.Write("\"");
+                    this.Emitter.Comma = true;
+                }
+                this.Emitter.Comma = true;
+                this.Write("];return func;})()");
             }
 
             this.WriteCloseParentheses();

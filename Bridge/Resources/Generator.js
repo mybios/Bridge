@@ -14,7 +14,7 @@
         }
     });
 
-    Bridge.define("Bridge.GeneratorEnumerable$1", function(T)
+    Bridge.define("Bridge.GeneratorEnumerable$1", (function(){var func = function(T)
     {
         return {
             inherits: [System.Collections.Generic.IEnumerable$1(T)],
@@ -31,7 +31,7 @@
                 this["System$Collections$Generic$IEnumerable$1$" + Bridge.getTypeAlias(T) + "$getEnumerator"] = action;
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());
 
     Bridge.define("Bridge.GeneratorEnumerator", {
         inherits: [System.Collections.IEnumerator],
@@ -65,7 +65,7 @@
         }
     });
 
-    Bridge.define("Bridge.GeneratorEnumerator$1", function (T) {
+    Bridge.define("Bridge.GeneratorEnumerator$1", (function(){var func = function (T) {
         return {
             inherits: [System.Collections.Generic.IEnumerator$1(T), System.IDisposable],
 
@@ -109,4 +109,4 @@
                 throw new System.NotSupportedException();
             }
         };
-    });
+    };func.$typeArguments = ["T"];return func;})());

@@ -1,4 +1,4 @@
-    Bridge.define('System.Collections.Generic.Dictionary$2', function (TKey, TValue) {
+    Bridge.define('System.Collections.Generic.Dictionary$2', (function(){var func = function (TKey, TValue) {
         return {
             inherits: [System.Collections.Generic.IDictionary$2(TKey, TValue), System.Collections.IDictionary],
 
@@ -257,7 +257,7 @@
                 });
             }
         };
-    });
+    };func.$typeArguments = ["TKey", "TValue"];return func;})());
 
     System.Collections.Generic.Dictionary$2.getTypeParameters = function(type) {
         var interfaceType;
@@ -281,7 +281,7 @@
         return [typeKey, typeValue];
     };
 
-    Bridge.define('System.Collections.Generic.DictionaryCollection$1', function (T) {
+    Bridge.define('System.Collections.Generic.DictionaryCollection$1', (function(){var func = function (T) {
         return {
             inherits: [System.Collections.Generic.ICollection$1(T)],
 
@@ -330,4 +330,4 @@
                 throw new System.NotSupportedException();
             }
         };
-    });
+    };func.$typeArguments = ["TKey", "TValue"];return func;})());

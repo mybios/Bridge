@@ -15,6 +15,7 @@ namespace System.Reflection
         Instance = 4,
         Static = 8,
         Public = 16,
+        NonPublic = 32,
         FlattenHierarchy = 64,
     }
 }
