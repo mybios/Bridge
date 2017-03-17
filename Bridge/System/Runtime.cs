@@ -710,15 +710,15 @@ namespace System.ComponentModel
 
 namespace System.Threading
 {
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [External]
-    [NonScriptable]
-    public static class Interlocked
-    {
-        public static extern int CompareExchange(ref int location1, int value, int comparand);
+    //[EditorBrowsable(EditorBrowsableState.Never)]
+    //[External]
+    //[NonScriptable]
+    //public static class Interlocked
+    //{
+    //    public static extern int CompareExchange(ref int location1, int value, int comparand);
 
-        public static extern T CompareExchange<T>(ref T location1, T value, T comparand) where T : class;
-    }
+    //    public static extern T CompareExchange<T>(ref T location1, T value, T comparand) where T : class;
+    //}
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [External]
