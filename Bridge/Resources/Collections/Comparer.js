@@ -6,7 +6,7 @@
                 this.$initialize();
                 this.fn = fn;
                 this.compare = fn;
-                this["System$Collections$Generic$IComparer$1$" + Bridge.getTypeAlias(T) + "$compare"] = fn;
+                this["System$Collections$Generic$IComparer$1$compare"] = fn;
             }
         }
     };func.$typeArguments = ["T"];return func;})());

@@ -1299,7 +1299,7 @@
                 return a[name](b);
             }
 
-            if (T && b != null && Bridge.isFunction(b[name = "System$IEquatable$1$" + Bridge.getTypeAlias(T) + "$equalsT"])) {
+            if (T && b != null && Bridge.isFunction(b[name = "System$IEquatable$1$equalsT"])) {
                 return b[name](a);
             }
 

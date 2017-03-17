@@ -21,14 +21,14 @@
 
             config: {
                 alias: [
-                "getEnumerator", "System$Collections$Generic$IEnumerable$1$" + Bridge.getTypeAlias(T) + "$getEnumerator"
+                "getEnumerator", "System$Collections$Generic$IEnumerable$1$getEnumerator"
                 ]
             },
 
             ctor: function(action) {
                 this.$initialize();
                 this.getEnumerator = action;
-                this["System$Collections$Generic$IEnumerable$1$" + Bridge.getTypeAlias(T) + "$getEnumerator"] = action;
+                this["System$Collections$Generic$IEnumerable$1$getEnumerator"] = action;
             }
         };
     };func.$typeArguments = ["T"];return func;})());
@@ -73,7 +73,7 @@
 
             config: {
                 alias: [
-                "getCurrent", "System$Collections$Generic$IEnumerator$1$" + Bridge.getTypeAlias(T) + "$getCurrent$1",
+                "getCurrent", "System$Collections$Generic$IEnumerator$1$getCurrent$1",
                 "dispose", "System$IDisposable$dispose",
                 "moveNext", "System$Collections$IEnumerator$moveNext",
                 "reset", "System$Collections$IEnumerator$reset"

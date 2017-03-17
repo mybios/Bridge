@@ -455,6 +455,7 @@ namespace Bridge.Contract
             {
                 if (isAlias)
                 {
+                    /*
                     StringBuilder sb = new StringBuilder(name);
                     bool needComma = false;
                     sb.Append(JS.Vars.D);
@@ -524,6 +525,7 @@ namespace Bridge.Contract
                     }
 
                     name = sb.ToString();
+                    */
                 }
                 else if (!asDefinition)
                 {

@@ -141,9 +141,10 @@ namespace Bridge.Translator
                 return;
             }
 
-            this.WriteOpenBracket();
+            this.WriteDot();
+            //this.WriteOpenBracket();
             this.Write(OverloadsCollection.Create(Emitter, resolveResult.Member, isSetter).GetOverloadName(externalInterface != null && externalInterface.IsSimpleImplementation, prefix));
-            this.WriteCloseBracket();
+            //this.WriteCloseBracket();
 
             if (interfaceTempVar != null)
             {
