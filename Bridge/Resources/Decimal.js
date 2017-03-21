@@ -19,9 +19,9 @@
                 v = v.replace(nfInfo.numberDecimalSeparator, ".");
             }
 
-            if (!/^\s*[+-]?(\d+|\d+.|\d*\.\d+)((e|E)[+-]?\d+)?\s*$/.test(v)) {
-                throw new System.FormatException();
-            }
+            //if (!/^\s*[+-]?(\d+|\d+.|\d*\.\d+)((e|E)[+-]?\d+)?\s*$/.test(v)) {
+            //    throw new System.FormatException();
+            //}
 
             v = v.replace(/\s/g, "");
         }

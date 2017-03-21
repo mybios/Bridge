@@ -52,11 +52,11 @@
             },
 
             eq: function (t1, t2) {
-                return Bridge.hasValue$1(t1, t2) ? (t1.ticks.eq(t2.ticks)) : null;
+                return Bridge.hasValue$1(t1, t2) ? (t1.ticks.eq(t2.ticks)) : t1 === t2;
             },
 
             neq: function (t1, t2) {
-                return Bridge.hasValue$1(t1, t2) ? (t1.ticks.ne(t2.ticks)) : null;
+                return Bridge.hasValue$1(t1, t2) ? (t1.ticks.ne(t2.ticks)) : t1 !== t2;
             },
 
             plus: function (t) {
