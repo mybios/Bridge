@@ -107,6 +107,19 @@
             return c;
         },
 
+        // Create a new Native Class
+        nativeDefine: function (className, gscope, prop, gCfg) {
+            var old = Bridge.Class.staticInitAllow;
+            var cls = Bridge.define(className, gscope, prop, gCfg);
+
+            Bridge.Class.staticInitAllow = true;
+            if (cls.$staticInit) {
+                cls.$staticInit();
+            }
+            Bridge.Class.staticInitAllow = old;
+            return cls;
+        },
+
         // Create a new Class that inherits from this class
         define: function (className, gscope, prop, gCfg) {
             var isGenericInstance = false;
@@ -809,5 +822,6 @@
     Bridge.Class.$queue = [];
     Bridge.Class.$queueEntry = [];
     Bridge.define = Bridge.Class.define;
+    Bridge.nativeDefine = Bridge.Class.nativeDefine;
     Bridge.definei = Bridge.Class.definei;
     Bridge.init = Bridge.Class.init;
