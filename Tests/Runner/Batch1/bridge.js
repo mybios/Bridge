@@ -208,78 +208,76 @@
             return proxy;
         },
 
-        property: function (scope, name, v, statics) {
-            var getName,
-                setName,
-                cfg = null;
+        ensureBaseProperty: function (scope, name) {
+            var scopeType = Bridge.getType(scope),
+                descriptors = scopeType.$descriptors || [];
 
-            if (v && Bridge.isDefined(v.value) && (v.setter || v.getter)) {
-                getName = v.getter;
-                setName = v.setter;
-                cfg = v;
-                v = v.value;
+            descriptors.$propMap = descriptors.$propMap || {};
+
+            if (descriptors.$propMap[name]) {
+                return scope;
             }
 
-            scope[name] = v;
+            for (var j = 0; j < descriptors.length; j++) {
+                var d = descriptors[j];
+                if (d.name === name) {
+                    var aliasCfg = {},
+                        aliasName = "$" + Bridge.getTypeAlias(d.cls) + "$" + name;
 
-            var rs = name.charAt(0) === "$",
-                cap = rs ? name.slice(1) : name,
-                lastSep = name.lastIndexOf("$"),
-                endsNum = lastSep > 0 && ((name.length - lastSep - 1) > 0) && !isNaN(parseInt(name.substr(lastSep + 1)));
+                    if (d.get) {
+                        aliasCfg.get = d.get;
+                    }
 
-            if (!cfg || !cfg.getter) {
-                getName = "get" + cap;
-            }
-
-            if (!cfg || !cfg.setter) {
-                setName = "set" + cap;
-            }
-
-            if (endsNum) {
-                lastSep = name.substring(0, lastSep - 1).lastIndexOf("$");
-            }
-
-            if (lastSep > 0 && lastSep !== (name.length - 1)) {
-                if (!cfg || !cfg.getter) {
-                    getName = name.substring(0, lastSep) + "get" + name.substr(lastSep + 1);
-                }
-
-                if (!cfg || !cfg.setter) {
-                    setName = name.substring(0, lastSep) + "set" + name.substr(lastSep + 1);
+                    if (d.set) {
+                        aliasCfg.set = d.set;
+                    }
+                    Bridge.property(scope, aliasName, aliasCfg, false, scopeType, true);
                 }
             }
 
-            if (getName === setName) {
-                scope[getName] = (function (name, scope, statics) {
-                    return statics ? function (value) {
-                        if (arguments.length === 0) {
-                            return scope[name];
-                        }
-                        scope[name] = value;
-                    } : function (value) {
-                        if (arguments.length === 0) {
-                            return this[name];
-                        }
-                        this[name] = value;
-                    };
-                })(name, scope, statics);
-            } else {
-                scope[getName] = (function (name, scope, statics) {
-                    return statics ? function () {
-                        return scope[name];
-                    } : function () {
-                        return this[name];
-                    };
-                })(name, scope, statics);
+            descriptors.$propMap[name] = true;
 
-                scope[setName] = (function (name, scope, statics) {
-                    return statics ? function (value) {
-                        scope[name] = value;
-                    } : function (value) {
-                        this[name] = value;
-                    };
-                })(name, scope, statics);
+            return scope;
+        },
+
+        property: function (scope, name, v, statics, cls, alias) {
+            var cfg = {
+                    enumerable: alias ? false : true,
+                    configurable: false
+                };
+
+            if (v && v.get) {
+                cfg.get = v.get;
             }
+
+            if (v && v.set) {
+                cfg.set = v.set;
+            }
+
+            if (!v || !(v.get || v.set)) {
+                var backingField = "$BackingField$" + cls.$$name + "$" + name;
+                Object.defineProperty(scope, backingField,
+                {
+                    writable: true,
+                    enumerable: false,
+                    configurable: false,
+                    value: v
+                });
+
+                (function (cfg, scope, backingField) {
+                    cfg.get = function () {
+                        return this[backingField];
+                    };
+
+                    cfg.set = function (value) {
+                        this[backingField] = value;
+                    };
+                })(cfg, scope, backingField);
+            }
+
+            Object.defineProperty(scope, name, cfg);
+
+            return cfg;
         },
 
         event: function (scope, name, v, statics) {
@@ -850,7 +848,7 @@
             // -instance of single class or primitive
             // -array of primitives
             // -array of single class
-            if (to instanceof System.Decimal && Bridge.isNumber(from)) {
+            if (to instanceof System.Decimal && typeof from === "number") {
                 return new System.Decimal(from);
             }
 
@@ -863,11 +861,10 @@
             }
 
             if (to instanceof Boolean || Bridge.isBoolean(to) ||
-                to instanceof Number || Bridge.isNumber(to) ||
+                typeof to === "number" ||
                 to instanceof String || Bridge.isString(to) ||
                 to instanceof Function || Bridge.isFunction(to) ||
                 to instanceof Date || Bridge.isDate(to) ||
-                Bridge.isNumber(to) ||
                 to instanceof System.Double ||
                 to instanceof System.Single ||
                 to instanceof System.Byte ||
@@ -877,7 +874,9 @@
                 to instanceof System.Int32 ||
                 to instanceof System.UInt32 ||
                 to instanceof Bridge.Int ||
-                to instanceof System.Decimal) {
+                to instanceof System.Decimal ||
+                to instanceof System.Int64 ||
+                to instanceof System.UInt64) {
                 return from;
             }
 
@@ -900,55 +899,81 @@
                     fn.apply(to, item);
                 }
             } else {
-                for (key in from) {
-                    value = from[key];
+                var t = Bridge.getType(to),
+					descriptors = t && t.$descriptors;
 
-                    if (typeof to[key] === "function") {
-                        if (key.match(/^\s*get[A-Z]/)) {
-                            Bridge.merge(to[key](), value);
-                        } else {
-                            to[key](value);
+                if (from) {
+                    for (key in from) {
+                        value = from[key];
+
+                        var descriptor = null;
+                        if (descriptors) {
+                            for (var i = descriptors.length - 1; i >= 0; i--) {
+                                if (descriptors[i].name === key) {
+                                    descriptor = descriptors[i];
+                                    break;
+                                }
+                            }
                         }
-                    } else {
-                        var setter1 = "set" + key.charAt(0).toUpperCase() + key.slice(1),
-                            setter2 = "set" + key,
-                            getter;
 
-                        if (typeof to[setter1] === "function" && typeof value !== "function") {
-                            getter = "g" + setter1.slice(1);
-                            if (typeof to[getter] === "function") {
-                                to[setter1](Bridge.merge(to[getter](), value));
+                        if (descriptor != null) {
+                            if (descriptor.set) {
+                                to[key] = Bridge.merge(to[key], value);
                             } else {
-                                to[setter1](value);
+                                Bridge.merge(to[key], value);
                             }
-                        } else if (typeof to[setter2] === "function" && typeof value !== "function") {
-                            getter = "g" + setter2.slice(1);
-                            if (typeof to[getter] === "function") {
-                                to[setter2](Bridge.merge(to[getter](), value));
+                        } else if (typeof to[key] === "function") {
+                            if (key.match(/^\s*get[A-Z]/)) {
+                                Bridge.merge(to[key](), value);
                             } else {
-                                to[setter2](value);
+                                to[key](value);
                             }
-                        } else if (value && value.constructor === Object && to[key]) {
-                            toValue = to[key];
-                            Bridge.merge(toValue, value);
                         } else {
-                            var isNumber = Bridge.isNumber(from);
+                            var setter1 = "set" + key.charAt(0).toUpperCase() + key.slice(1),
+                                setter2 = "set" + key,
+                                getter;
 
-                            if (to[key] instanceof System.Decimal && isNumber) {
-                                return new System.Decimal(from);
+                            if (typeof to[setter1] === "function" && typeof value !== "function") {
+                                getter = "g" + setter1.slice(1);
+                                if (typeof to[getter] === "function") {
+                                    to[setter1](Bridge.merge(to[getter](), value));
+                                } else {
+                                    to[setter1](value);
+                                }
+                            } else if (typeof to[setter2] === "function" && typeof value !== "function") {
+                                getter = "g" + setter2.slice(1);
+                                if (typeof to[getter] === "function") {
+                                    to[setter2](Bridge.merge(to[getter](), value));
+                                } else {
+                                    to[setter2](value);
+                                }
+                            } else if (value && value.constructor === Object && to[key]) {
+                                toValue = to[key];
+                                Bridge.merge(toValue, value);
+                            } else {
+                                var isNumber = Bridge.isNumber(from);
+
+                                if (to[key] instanceof System.Decimal && isNumber) {
+                                    return new System.Decimal(from);
+                                }
+
+                                if (to[key] instanceof System.Int64 && isNumber) {
+                                    return new System.Int64(from);
+                                }
+
+                                if (to[key] instanceof System.UInt64 && isNumber) {
+                                    return new System.UInt64(from);
+                                }
+
+                                to[key] = value;
                             }
-
-                            if (to[key] instanceof System.Int64 && isNumber) {
-                                return new System.Int64(from);
-                            }
-
-                            if (to[key] instanceof System.UInt64 && isNumber) {
-                                return new System.UInt64(from);
-                            }
-
-                            to[key] = value;
                         }
                     }
+                } else {
+                    if (callback) {
+                        callback.call(to, to);
+                    }
+                    return from;
                 }
             }
 
@@ -1034,7 +1059,7 @@
                 i = Bridge.getEnumerator(ienumerable);
 
                 while (i.moveNext()) {
-                    item = i.getCurrent();
+                    item = i.Current;
                     result.push(item);
                 }
             }
@@ -1055,7 +1080,7 @@
                 return false;
             }
 
-            return Bridge.arrayTypes.indexOf(c) >= 0 || c.$isArray;
+            return Bridge.arrayTypes.indexOf(c) >= 0 || c.$isArray || Array.isArray(obj);
         },
 
         isFunction: function (obj) {
@@ -2166,7 +2191,7 @@
     Bridge.Browser = browser;
     // @source Class.js
 
-    var base = {
+        var base = {
         _initialize: function () {
             if (this.$initialized) {
                 return;
@@ -2185,7 +2210,9 @@
 
         initConfig: function (extend, base, config, statics, scope, prototype) {
             var initFn,
-                name;
+                name,
+                cls = (statics ? scope : scope.ctor),
+                descriptors = cls.$descriptors;
 
             if (config.fields) {
                 for (name in config.fields) {
@@ -2195,7 +2222,12 @@
 
             if (config.properties) {
                 for (name in config.properties) {
-                    Bridge.property(scope, name, config.properties[name], statics);
+                    var cfg = Bridge.property(statics ? scope : prototype, name, config.properties[name], statics, cls);
+
+                    cfg.name = name;
+                    cfg.cls = cls;
+
+                    descriptors.push(cfg);
                 }
             }
 
@@ -2207,13 +2239,29 @@
 
             if (config.alias) {
                 for (var i = 0; i < config.alias.length; i++) {
-                    var m = scope[config.alias[i]];
+                    (function (obj, name, alias) {
+                        var descriptor = null;
+                        for (var i = descriptors.length - 1; i >= 0; i--) {
+                            if (descriptors[i].name === name) {
+                                descriptor = descriptors[i];
+                                break;
+                            }
+                        }
 
-                    if (m === undefined && prototype) {
-                        m = prototype[config.alias[i]];
-                    }
+                        if (descriptor != null) {
+                            Object.defineProperty(obj, alias, descriptor);
+                        } else {
+                            var m = scope[name];
 
-                    scope[config.alias[i + 1]] = m;
+                            if (m === undefined && prototype) {
+                                m = prototype[name];
+                            }
+
+                            scope[alias] = m;
+                        }
+                        
+                    })(statics ? scope : prototype, config.alias[i], config.alias[i + 1]);
+
                     i++;
                 }
             }
@@ -2302,8 +2350,8 @@
 
             prop = prop || {};
 
-            if (prop.$kind == "enum" && !prop.inherits) {
-                prop.inherits = [System.IComparable, System.IFormattable]
+            if (prop.$kind === "enum" && !prop.inherits) {
+                prop.inherits = [System.IComparable, System.IFormattable];
             }
 
             var extend = prop.$inherits || prop.inherits,
@@ -2496,6 +2544,10 @@
 
             prototype.$$name = className;
 
+            if (!prototype.toJSON) {
+                prototype.toJSON = Bridge.Class.toJSON;
+            }
+
             if (statics) {
                 for (name in statics) {
                     if (name === "ctor") {
@@ -2586,12 +2638,20 @@
 
         createInheritors: function(cls, extend) {
             var interfaces = [],
-                baseInterfaces = [];
+                baseInterfaces = [],
+                descriptors = [];
 
             if (extend) {
                 for (var j = 0; j < extend.length; j++) {
                     var baseType = extend[j],
-                        baseI = (baseType.$interfaces || []).concat(baseType.$baseInterfaces || []);
+                        baseI = (baseType.$interfaces || []).concat(baseType.$baseInterfaces || []),
+                        baseDescriptors = baseType.$descriptors;
+
+                    if (baseDescriptors && baseDescriptors.length > 0) {
+                        for (var d = 0; d < baseDescriptors.length; d++) {
+                            descriptors.push(baseDescriptors[d]);
+                        }
+                    }
 
                     if (baseI.length > 0) {
                         for (var k = 0; k < baseI.length; k++) {
@@ -2607,9 +2667,37 @@
                 }
             }
 
+            cls.$descriptors = descriptors;
             cls.$baseInterfaces = baseInterfaces;
             cls.$interfaces = interfaces;
             cls.$allInterfaces = interfaces.concat(baseInterfaces);
+        },
+
+        toJSON: function () {
+            var obj = {},
+                t = Bridge.getType(this),
+                descriptors = t.$descriptors || [];
+
+            for (var key in this) {
+                var own = this.hasOwnProperty(key),
+                    descriptor = null;
+
+                if (!own) {
+                    for (var i = descriptors.length - 1; i >= 0; i--) {
+                        if (descriptors[i].name === key) {
+                            descriptor = descriptors[i];
+                            break;
+                        }
+                    }    
+                }
+
+                var dcount = key.split("$").length;
+                if ((own || descriptor != null) && (dcount === 1 || dcount === 2 && key.match("\$\d+$"))) {
+                    obj[key] = this[key];
+                }
+            }
+
+            return obj;
         },
 
         setInheritors: function(cls, extend) {
@@ -3140,7 +3228,7 @@
                         enm =  Bridge.getEnumerator(obj);
 
                     while (enm.moveNext()) {
-                        var entr = enm.getCurrent();
+                        var entr = enm.Current;
                         dict[Bridge.Json.serialize(entr.key, settings, true, typeKey)] = Bridge.Json.serialize(entr.value, settings, true, typeValue);
                     }
 
@@ -3427,7 +3515,7 @@
                                 Bridge.Reflection.midel(properties[i].s, o)(Bridge.Json.deserialize(value, properties[i].rt, settings, true));
                             }
                             else if (type.$kind === "anonymous") {
-                                o[properties[i].n.charAt(0).toLowerCase() + properties[i].n.substr(1)] = Bridge.Json.deserialize(value, properties[i].rt, settings, true);
+                                o[properties[i].n] = Bridge.Json.deserialize(value, properties[i].rt, settings, true);
                             }
                         }
                     }
@@ -4787,6 +4875,20 @@
         inherits: [System.FormattableString],
         args: null,
         format: null,
+        config: {
+            properties: {
+                ArgumentCount: {
+                    get: function () {
+                        return this.args.length;
+                    }
+                },
+                Format: {
+                    get: function () {
+                        return this.format;
+                    }
+                }
+            }
+        },
         ctor: function (format, args) {
             if (args === void 0) { args = []; }
 
@@ -4795,14 +4897,8 @@
             this.format = format;
             this.args = args;
         },
-        getArgumentCount: function () {
-            return this.args.length;
-        },
-        getFormat: function () {
-            return this.format;
-        },
         getArgument: function (index) {
-            return this.args[index];
+            return this.args[System.Array.index(index, this.args)];
         },
         getArguments: function () {
             return this.args;
@@ -4825,7 +4921,35 @@
 
     // @source Exception.js
 
-    Bridge.define("System.Exception", {
+Bridge.define("System.Exception", {
+        config: {
+            properties: {
+                Message: {
+                    get: function() {
+                        return this.message;
+                    }
+                },
+
+                InnerException: {
+                    get: function () {
+                        return this.innerException;
+                    }
+                },
+
+                StackTrace: {
+                    get: function () {
+                        return this.errorStack.stack;
+                    }
+                },
+
+                Data: {
+                    get: function () {
+                        return this.data;
+                    }
+                }
+            }        
+        },
+
         ctor: function (message, innerException) {
             this.$initialize();
             this.message = message ? message : ("Exception of type '" + Bridge.getTypeName(this) + "' was thrown.");
@@ -4834,24 +4958,31 @@
             this.data = new(System.Collections.Generic.Dictionary$2(System.Object, System.Object))();
         },
 
-        getMessage: function () {
-            return this.message;
-        },
-
-        getInnerException: function () {
-            return this.innerException;
-        },
-
-        getStackTrace: function () {
-            return this.errorStack.stack;
-        },
-
-        getData: function () {
-            return this.data;
+        getBaseException: function() {
+            var inner = this.innerException;
+            var back = this;
+            
+            while (inner != null) {
+                back = inner;
+                inner = inner.innerException;
+            }
+            
+            return back;  
         },
 
         toString: function () {
-            return this.getMessage();
+            var builder = Bridge.getTypeName(this);
+            if (this.Message != null) {
+                builder += ": " + this.Message + "\n";
+            } else {
+                builder += "\n";
+            }
+                
+            if (this.StackTrace != null) {
+                builder += this.StackTrace + "\n";
+            }
+                
+            return builder;
         },
 
         statics: {
@@ -4995,14 +5126,20 @@
     Bridge.define("System.ArgumentException", {
         inherits: [System.Exception],
 
+        config: {
+            properties: {
+                ParamName: {
+                    get: function() {
+                        return this.paramName;
+                    }
+                }
+            }  
+        },
+
         ctor: function (message, paramName, innerException) {
             this.$initialize();
             System.Exception.ctor.call(this, message || "Value does not fall within the expected range.", innerException);
             this.paramName = paramName ? paramName : null;
-        },
-
-        getParamName: function () {
-            return this.paramName;
         }
     });
 
@@ -5027,6 +5164,16 @@
     Bridge.define("System.ArgumentOutOfRangeException", {
         inherits: [System.ArgumentException],
 
+        config: {
+            properties: {
+                ActualValue: {
+                    get: function () {
+                        return this.actualValue;
+                    }
+                }
+            }
+        },
+
         ctor: function (paramName, message, innerException, actualValue) {
             this.$initialize();
 
@@ -5041,10 +5188,6 @@
             System.ArgumentException.ctor.call(this, message, paramName, innerException);
 
             this.actualValue = actualValue ? actualValue : null;
-        },
-
-        getActualValue: function () {
-            return this.actualValue;
         }
     });
 
@@ -5104,7 +5247,7 @@
 
         ctor: function (message, innerException) {
             this.$initialize();
-            System.ArithmeticException.ctor.call(this, message || "Division by 0.", innerException);
+            System.ArithmeticException.ctor.call(this, message || "Attempted to divide by zero.", innerException);
         }
     });
 
@@ -5245,8 +5388,19 @@
             }
 
             if (unhandledExceptions.length > 0) {
-                throw new System.AggregateException(this.getMessage(), unhandledExceptions);
+                throw new System.AggregateException(this.Message, unhandledExceptions);
             }
+        },
+
+        getBaseException: function() {
+            var back = this;
+            var backAsAggregate = this;
+            while (backAsAggregate != null && backAsAggregate.innerExceptions.getCount() === 1)
+            {
+                back = back.InnerException;
+                backAsAggregate = Bridge.as(back, System.AggregateException);
+            }
+            return back;  
         },
 
         flatten: function () {
@@ -5282,7 +5436,7 @@
                 }
             }
 
-            return new System.AggregateException(this.getMessage(), flattenedExceptions);
+            return new System.AggregateException(this.Message, flattenedExceptions);
         }
     });
 
@@ -9707,7 +9861,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
 
             try {
                 while (enumerator.moveNext()) {
-                    if (!predicate(enumerator.getCurrent())) {
+                    if (!predicate(enumerator.Current)) {
                         return false;
                     }
                 }
@@ -9742,7 +9896,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
 
             try {
                 while (enumerator.moveNext()) {
-                    if (predicate(enumerator.getCurrent())) {
+                    if (predicate(enumerator.Current)) {
                         return true;
                     }
                 }
@@ -9768,6 +9922,34 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
     Bridge.define("System.Diagnostics.Contracts.ContractException", {
         inherits: [System.Exception],
 
+        config: {
+            properties: {
+                Kind: {
+                    get: function() {
+                        return this._kind;
+                    }
+                },
+
+                Failure: {
+                    get: function () {
+                        return this._failureMessage;
+                    }
+                },
+
+                UserMessage: {
+                    get: function () {
+                        return this._userMessage;
+                    }
+                },
+
+                Condition: {
+                    get: function () {
+                        return this._condition;
+                    }
+                }
+            }  
+        },
+
         ctor: function (failureKind, failureMessage, userMessage, condition, innerException) {
             this.$initialize();
             System.Exception.ctor.call(this, failureMessage, innerException);
@@ -9775,19 +9957,6 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
             this._failureMessage = failureMessage || null;
             this._userMessage = userMessage || null;
             this._condition = condition || null;
-        },
-
-        getKind: function () {
-            return this._kind;
-        },
-        getFailure: function () {
-            return this._failureMessage;
-        },
-        getUserMessage: function () {
-            return this._userMessage;
-        },
-        getCondition: function () {
-            return this._condition;
         }
     });
 
@@ -9800,7 +9969,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
             }
 
             if (indices[0] < 0 || indices[0] >= (arr.$s ? arr.$s[0] : arr.length)) {
-                throw new System.ArgumentException("Index 0 out of range");
+                throw new System.IndexOutOfRangeException("Index 0 out of range");
             }
 
             var idx = indices[0],
@@ -9809,7 +9978,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
             if (arr.$s) {
                 for (i = 1; i < arr.$s.length; i++) {
                     if (indices[i] < 0 || indices[i] >= arr.$s[i]) {
-                        throw new System.ArgumentException("Index " + i + " out of range");
+                        throw new System.IndexOutOfRangeException("Index " + i + " out of range");
                     }
 
                     idx = idx * arr.$s[i] + indices[i];
@@ -9817,6 +9986,13 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
             }
 
             return idx;
+        },
+
+        index: function (index, arr) {
+            if (index < 0 || index >= arr.length) {
+                throw new System.IndexOutOfRangeException();
+            }
+            return index;
         },
 
         $get: function (indices) {
@@ -10035,13 +10211,20 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
         },
 
         getCount: function (obj, T) {
-            var name;
+            var name,
+                v;
             if (Bridge.isArray(obj)) {
                 return obj.length;
             } else if (T && Bridge.isFunction(obj[name = "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getCount"])) {
                 return obj[name]();
             } else if (Bridge.isFunction(obj[name = "System$Collections$ICollection$getCount"])) {
                 return obj[name]();
+            } else if (T && (v = obj["System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$Count"]) !== undefined) {
+                return v;
+            } else if ((v = obj["System$Collections$ICollection$Count"]) !== undefined) {
+                return v;
+            } else if ((v = obj.Count) !== undefined) {
+                return v;
             } else if (Bridge.isFunction(obj.getCount)) {
                 return obj.getCount();
             }
@@ -10050,19 +10233,26 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
         },
 
         getIsReadOnly: function (obj, T) {
-            var name;
+            var name,
+                v;
 
             if (Bridge.isArray(obj)) {
                 return T ? true : false;
             } else if (T && Bridge.isFunction(obj[name = "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getIsReadOnly"])) {
                 return obj[name]();
+            } else if (T && (v = obj["System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$IsReadOnly"]) !== undefined) {
+                return v;
             } else if (Bridge.isFunction(obj[name = "System$Collections$IList$getIsReadOnly"])) {
                 return obj[name]();
+            } else if ((v = obj["System$Collections$IList$IsReadOnly"]) !== undefined) {
+                return v;
+            } else if ((v = obj.IsReadOnly) !== undefined) {
+                return v;
             } else if (Bridge.isFunction(obj.getIsReadOnly)) {
                 return obj.getIsReadOnly();
             }
 
-            return 0;
+            return false;
         },
 
         checkReadOnly: function(obj, T, msg) {
@@ -10553,7 +10743,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
 
                 try {
                     while (e.moveNext()) {
-                        arr.push(e.getCurrent());
+                        arr.push(e.Current);
                     }
                 } finally {
                     if (Bridge.is(e, System.IDisposable)) {
@@ -10822,7 +11012,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
 
             if (!result) {
                 name = Bridge.getTypeName(t) + "[" + System.String.fromCharCount(",".charCodeAt(0), rank - 1) + "]";
-
+                var old = Bridge.Class.staticInitAllow;
                 result = Bridge.define(name, {
                     $inherits: [Array, System.Collections.ICollection, System.ICloneable, System.Collections.Generic.IList$1(t)],
                     $noRegister: true,
@@ -10855,7 +11045,12 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
                 });
 
                 typeCache.push(result);
-                Bridge.init();
+
+                Bridge.Class.staticInitAllow = true;
+                if (result.$staticInit) {
+                    result.$staticInit();
+                }
+                Bridge.Class.staticInitAllow = old;
             }
 
             if (arr) {
@@ -11032,13 +11227,23 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
     // @source CustomEnumerator.js
 
     Bridge.define('Bridge.CustomEnumerator', {
-        inherits: [System.Collections.IEnumerator],
+        inherits: [System.Collections.IEnumerator, System.IDisposable],
 
         config: {
+			properties: {
+				Current: {
+					get: function () {
+						return this.getCurrent();
+					}
+				}
+			},
+			
             alias: [
                 "getCurrent", "System$Collections$IEnumerator$getCurrent",
                 "moveNext", "System$Collections$IEnumerator$moveNext",
-                "reset", "System$Collections$IEnumerator$reset"
+                "reset", "System$Collections$IEnumerator$reset",
+				"dispose", "System$IDisposable$dispose",
+				"Current", "System$Collections$IEnumerator$Current"
             ]
         },
 
@@ -11093,11 +11298,26 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
         },
 
         config: {
+			properties: {
+				Current: {
+					get: function () {
+						return this.getCurrent();
+					}
+				},
+
+				Current$1: {
+				    get: function () {
+				        return this.getCurrent();
+				    }
+				}
+			},
+			
             alias: [
                 "getCurrent", "System$Collections$IEnumerator$getCurrent",
                 "moveNext", "System$Collections$IEnumerator$moveNext",
                 "reset", "System$Collections$IEnumerator$reset",
-                "dispose", "System$IDisposable$dispose"
+                "dispose", "System$IDisposable$dispose",
+				"Current", "System$Collections$IEnumerator$Current"
             ]
         },
 
@@ -11108,6 +11328,11 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
 
             if (T) {
                 this["System$Collections$Generic$IEnumerator$1$" + Bridge.getTypeAlias(T) + "$getCurrent$1"] = this.getCurrent;
+
+                Object.defineProperty(this, "System$Collections$Generic$IEnumerator$1$" + Bridge.getTypeAlias(T) + "$Current$1", {
+                    get: this.getCurrent,
+                    enumerable: true
+                });
             }
         },
 
@@ -11234,10 +11459,31 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
             inherits: [System.Collections.Generic.IDictionary$2(TKey, TValue), System.Collections.IDictionary],
 
             config: {
+                properties: {
+                    Keys: {
+                        get: function() {
+                            return this.getKeys();
+                        }
+                    },
+
+                    Values: {
+                        get: function () {
+                            return this.getValues();
+                        }
+                    },
+
+                    IsReadOnly: {
+                        get: function () {
+                            return this.getIsReadOnly();
+                        }
+                    }
+                },
                 alias: [
                     "getCount", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(System.Collections.Generic.KeyValuePair$2(TKey, TValue)) + "$getCount",
                     "getKeys", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$getKeys",
                     "getValues", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$getValues",
+                    "Keys", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$Keys",
+                    "Values", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$Values",
                     "get", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$getItem",
                     "set", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$setItem",
                     "add", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$add",
@@ -11246,6 +11492,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
                     "remove", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$remove",
                     "tryGetValue", "System$Collections$Generic$IDictionary$2$" + Bridge.getTypeAlias(TKey) + "$" + Bridge.getTypeAlias(TValue) + "$tryGetValue",
                     "getIsReadOnly", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(System.Collections.Generic.KeyValuePair$2(TKey, TValue)) + "$getIsReadOnly",
+                    "IsReadOnly", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(System.Collections.Generic.KeyValuePair$2(TKey, TValue)) + "$IsReadOnly",
                     "addPair", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(System.Collections.Generic.KeyValuePair$2(TKey, TValue)) + "$add",
                     "copyTo", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(System.Collections.Generic.KeyValuePair$2(TKey, TValue)) + "$copyTo",
                     "clear", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(System.Collections.Generic.KeyValuePair$2(TKey, TValue)) + "$clear",
@@ -11254,12 +11501,15 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
                     "copyTo", "System$Collections$ICollection$copyTo",
                     "get", "System$Collections$IDictionary$getItem",
                     "set", "System$Collections$IDictionary$setItem",
-                    "getValues", "System$Collections$IDictionary$getValues",
                     "containsKey", "System$Collections$IDictionary$containsKey",
                     "add", "System$Collections$IDictionary$add",
                     "remove", "System$Collections$IDictionary$remove",
                     "getIsReadOnly", "System$Collections$IDictionary$getIsReadOnly",
-                    "getKeys", "System$Collections$IDictionary$getKeys"
+                    "getKeys", "System$Collections$IDictionary$getKeys",
+                    "getValues", "System$Collections$IDictionary$getValues",
+                    "IsReadOnly", "System$Collections$IDictionary$IsReadOnly",
+                    "Keys", "System$Collections$IDictionary$Keys",
+                    "Values", "System$Collections$IDictionary$Values"
                 ]
             },
 
@@ -11273,7 +11523,7 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
                         c;
 
                     while (e.moveNext()) {
-                        c = e.getCurrent();
+                        c = e.Current;
                         this.add(c.key, c.value);
                     }
                 } else if (Object.prototype.toString.call(obj) === '[object Object]') {
@@ -11570,6 +11820,19 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
             inherits: [System.Collections.Generic.IList$1(T), System.Collections.IList],
 
             config: {
+                properties: {
+                  Count: {
+                      get: function() {
+                          return this.getCount();
+                      }
+                  },
+
+                  IsReadOnly: {
+                      get: function () {
+                          return this.getIsReadOnly();
+                      }
+                  }
+                },
                 alias: [
                 "getItem", "System$Collections$Generic$IList$1$" + Bridge.getTypeAlias(T) + "$getItem",
                 "getItem", "System$Collections$IList$getItem",
@@ -11577,8 +11840,12 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
                 "setItem", "System$Collections$IList$setItem",
                 "getCount", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getCount",
                 "getCount", "System$Collections$ICollection$getCount",
+                "Count", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$Count",
+                "Count", "System$Collections$ICollection$Count",
                 "getIsReadOnly", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getIsReadOnly",
                 "getIsReadOnly", "System$Collections$IList$getIsReadOnly",
+                "IsReadOnly", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$IsReadOnly",
+                "IsReadOnly", "System$Collections$IList$IsReadOnly",
                 "add", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$add",
                 "add", "System$Collections$IList$add",
                 "clear", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$clear",
@@ -11598,6 +11865,10 @@ Bridge.Class.addExtend(System.Boolean, [System.IComparable$1(System.Boolean), Sy
                 "removeAt", "System$Collections$Generic$IList$1$" + Bridge.getTypeAlias(T) + "$removeAt",
                 "removeAt", "System$Collections$IList$removeAt"
                 ]
+            },
+
+            toJSON: function() {
+                return this.items;
             },
 
             ctor: function (obj) {
@@ -13240,25 +13511,25 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     return false;
                 }
 
-                if (!System.Version.tryParseComponent(parsedComponents[0], "version", result, major)) {
+                if (!System.Version.tryParseComponent(parsedComponents[System.Array.index(0, parsedComponents)], "version", result, major)) {
                     return false;
                 }
 
-                if (!System.Version.tryParseComponent(parsedComponents[1], "version", result, minor)) {
+                if (!System.Version.tryParseComponent(parsedComponents[System.Array.index(1, parsedComponents)], "version", result, minor)) {
                     return false;
                 }
 
                 parsedComponentsLength = (parsedComponentsLength - 2) | 0;
 
                 if (parsedComponentsLength > 0) {
-                    if (!System.Version.tryParseComponent(parsedComponents[2], "build", result, build)) {
+                    if (!System.Version.tryParseComponent(parsedComponents[System.Array.index(2, parsedComponents)], "build", result, build)) {
                         return false;
                     }
 
                     parsedComponentsLength = (parsedComponentsLength - 1) | 0;
 
                     if (parsedComponentsLength > 0) {
-                        if (!System.Version.tryParseComponent(parsedComponents[3], "revision", result, revision)) {
+                        if (!System.Version.tryParseComponent(parsedComponents[System.Array.index(3, parsedComponents)], "revision", result, revision)) {
                             return false;
                         } else {
                             result.v.m_parsedVersion = new System.Version.$ctor3(major.v, minor.v, build.v, revision.v);
@@ -13321,6 +13592,38 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         _Build: -1,
         _Revision: -1,
         config: {
+            properties: {
+                Major: {
+                    get: function () {
+                        return this._Major;
+                    }
+                },
+                Minor: {
+                    get: function () {
+                        return this._Minor;
+                    }
+                },
+                Build: {
+                    get: function () {
+                        return this._Build;
+                    }
+                },
+                Revision: {
+                    get: function () {
+                        return this._Revision;
+                    }
+                },
+                MajorRevision: {
+                    get: function () {
+                        return Bridge.Int.sxs((this._Revision >> 16) & 65535);
+                    }
+                },
+                MinorRevision: {
+                    get: function () {
+                        return Bridge.Int.sxs((this._Revision & 65535) & 65535);
+                    }
+                }
+            },
             alias: [
             "clone", "System$ICloneable$clone",
             "compareTo", "System$IComparable$1$System$Version$compareTo",
@@ -13384,33 +13687,15 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         $ctor4: function (version) {
             this.$initialize();
             var v = System.Version.parse(version);
-            this._Major = v.getMajor();
-            this._Minor = v.getMinor();
-            this._Build = v.getBuild();
-            this._Revision = v.getRevision();
+            this._Major = v.Major;
+            this._Minor = v.Minor;
+            this._Build = v.Build;
+            this._Revision = v.Revision;
         },
         ctor: function () {
             this.$initialize();
             this._Major = 0;
             this._Minor = 0;
-        },
-        getMajor: function () {
-            return this._Major;
-        },
-        getMinor: function () {
-            return this._Minor;
-        },
-        getBuild: function () {
-            return this._Build;
-        },
-        getRevision: function () {
-            return this._Revision;
-        },
-        getMajorRevision: function () {
-            return Bridge.Int.sxs((this._Revision >> 16) & 65535);
-        },
-        getMinorRevision: function () {
-            return Bridge.Int.sxs((this._Revision & 65535) & 65535);
         },
         clone: function () {
             var v = new System.Version.ctor();
@@ -15645,10 +15930,19 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         current: null,
 
         config: {
+			properties: {
+				Current: {
+					get: function () {
+						return this.getCurrent();
+					}
+				}
+			},
+			
             alias: [
-            "getCurrent", "System$Collections$IEnumerator$getCurrent",
-            "moveNext", "System$Collections$IEnumerator$moveNext",
-            "reset", "System$Collections$IEnumerator$reset"
+				"getCurrent", "System$Collections$IEnumerator$getCurrent",
+				"moveNext", "System$Collections$IEnumerator$moveNext",
+				"reset", "System$Collections$IEnumerator$reset",
+				"Current", "System$Collections$IEnumerator$Current"
             ]
         },
 
@@ -15678,11 +15972,26 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             current: null,
 
             config: {
+				properties: {
+					Current: {
+						get: function () {
+							return this.getCurrent();
+						}
+					},
+					
+					Current$1: {
+						get: function () {
+							return this.getCurrent();
+						}
+					}
+				},
                 alias: [
-                "getCurrent", "System$Collections$Generic$IEnumerator$1$" + Bridge.getTypeAlias(T) + "$getCurrent$1",
-                "dispose", "System$IDisposable$dispose",
-                "moveNext", "System$Collections$IEnumerator$moveNext",
-                "reset", "System$Collections$IEnumerator$reset"
+					"getCurrent", "System$Collections$Generic$IEnumerator$1$" + Bridge.getTypeAlias(T) + "$getCurrent$1",
+					"Current", "System$Collections$Generic$IEnumerator$1$" + Bridge.getTypeAlias(T) + "$Current$1",
+					"Current", "System$Collections$IEnumerator$Current",
+					"dispose", "System$IDisposable$dispose",
+					"moveNext", "System$Collections$IEnumerator$moveNext",
+					"reset", "System$Collections$IEnumerator$reset"
                 ]
             },
 
@@ -15886,6 +16195,24 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         this.System$Collections$IEnumerator$getCurrent = this.getCurrent;
         this.System$Collections$IEnumerator$moveNext = this.moveNext;
         this.System$Collections$IEnumerator$reset = this.reset;
+
+        Object.defineProperties(this,
+        {
+            "Current$1": {
+                get: this.getCurrent,
+                enumerable: true
+            },
+
+            "Current": {
+                get: this.getCurrent,
+                enumerable: true
+            },
+
+            "System$Collections$IEnumerator$Current": {
+                get: this.getCurrent,
+                enumerable: true
+            }
+        });
     };
 
     IEnumerator.$$inherits = [];
@@ -16043,7 +16370,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     function () { enumerator = Bridge.getEnumerator(ienum); },
                     function () {
                         var ok = enumerator.moveNext();
-                        return ok ? this.yieldReturn(enumerator.getCurrent()) : false;
+                        return ok ? this.yieldReturn(enumerator.Current) : false;
                     },
                     function () {
                         var disposable = Bridge.as(enumerator, System.IDisposable);
@@ -16328,7 +16655,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () { enumerator = Enumerable.from(enumerableFactory()).getEnumerator(); },
                 function () {
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : this.yieldBreak();
                 },
                 function () {
@@ -16359,8 +16686,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     while (true) {
                         if (enumerator.moveNext()) {
-                            buffer.push(enumerator.getCurrent());
-                            return this.yieldReturn(resultSelector(enumerator.getCurrent(), nestLevel));
+                            buffer.push(enumerator.Current);
+                            return this.yieldReturn(resultSelector(enumerator.Current, nestLevel));
                         }
 
                         var next = Enumerable.from(buffer).selectMany(function (x) { return func(x); });
@@ -16396,9 +16723,9 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     while (true) {
                         if (enumerator.moveNext()) {
-                            var value = resultSelector(enumerator.getCurrent(), enumeratorStack.length);
+                            var value = resultSelector(enumerator.Current, enumeratorStack.length);
                             enumeratorStack.push(enumerator);
-                            enumerator = Enumerable.from(func(enumerator.getCurrent())).getEnumerator();
+                            enumerator = Enumerable.from(func(enumerator.Current)).getEnumerator();
                             return this.yieldReturn(value);
                         }
 
@@ -16431,7 +16758,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     while (true) {
                         if (middleEnumerator != null) {
                             if (middleEnumerator.moveNext()) {
-                                return this.yieldReturn(middleEnumerator.getCurrent());
+                                return this.yieldReturn(middleEnumerator.Current);
                             }
                             else {
                                 middleEnumerator = null;
@@ -16439,16 +16766,16 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         }
 
                         if (enumerator.moveNext()) {
-                            if (enumerator.getCurrent() instanceof Array) {
+                            if (enumerator.Current instanceof Array) {
                                 Utils.dispose(middleEnumerator);
-                                middleEnumerator = Enumerable.from(enumerator.getCurrent())
+                                middleEnumerator = Enumerable.from(enumerator.Current)
                                     .selectMany(Functions.Identity)
                                     .flatten()
                                     .getEnumerator();
                                 continue;
                             }
                             else {
-                                return this.yieldReturn(enumerator.getCurrent());
+                                return this.yieldReturn(enumerator.Current);
                             }
                         }
 
@@ -16479,9 +16806,9 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     enumerator.moveNext();
                 },
                 function () {
-                    var prev = enumerator.getCurrent();
+                    var prev = enumerator.Current;
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(selector(prev, enumerator.getCurrent()))
+                        ? this.yieldReturn(selector(prev, enumerator.Current))
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -16513,7 +16840,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         isFirst = false;
                         if (!isUseSeed) {
                             if (enumerator.moveNext()) {
-                                return this.yieldReturn(value = enumerator.getCurrent());
+                                return this.yieldReturn(value = enumerator.Current);
                             }
                         }
                         else {
@@ -16522,7 +16849,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     }
 
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(value = func(value, enumerator.getCurrent()))
+                        ? this.yieldReturn(value = func(value, enumerator.Current))
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -16548,7 +16875,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     function () { enumerator = source.getEnumerator(); },
                     function () {
                         return (enumerator.moveNext())
-                            ? this.yieldReturn(selector(enumerator.getCurrent(), index++))
+                            ? this.yieldReturn(selector(enumerator.Current, index++))
                             : false;
                     },
                     function () { Utils.dispose(enumerator); });
@@ -16579,11 +16906,11 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     }
                     do {
                         if (middleEnumerator == null) {
-                            var middleSeq = collectionSelector(enumerator.getCurrent(), index++);
+                            var middleSeq = collectionSelector(enumerator.Current, index++);
                             middleEnumerator = Enumerable.from(middleSeq).getEnumerator();
                         }
                         if (middleEnumerator.moveNext()) {
-                            return this.yieldReturn(resultSelector(enumerator.getCurrent(), middleEnumerator.getCurrent()));
+                            return this.yieldReturn(resultSelector(enumerator.Current, middleEnumerator.Current));
                         }
                         Utils.dispose(middleEnumerator);
                         middleEnumerator = null;
@@ -16620,8 +16947,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     function () { enumerator = source.getEnumerator(); },
                     function () {
                         while (enumerator.moveNext()) {
-                            if (predicate(enumerator.getCurrent(), index++)) {
-                                return this.yieldReturn(enumerator.getCurrent());
+                            if (predicate(enumerator.Current, index++)) {
+                                return this.yieldReturn(enumerator.Current);
                             }
                         }
                         return false;
@@ -16645,7 +16972,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () { enumerator = source.getEnumerator(); },
                 function () {
                     while (enumerator.moveNext()) {
-                        var result = selector(enumerator.getCurrent(), index++);
+                        var result = selector(enumerator.Current, index++);
                         if (result != null) {
                             return this.yieldReturn(result);
                         }
@@ -16668,7 +16995,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
 				},
                 function () {
                     while (enumerator.moveNext()) {
-                        var v = Bridge.as(enumerator.getCurrent(), type);
+                        var v = Bridge.as(enumerator.Current, type);
                         if (Bridge.hasValue(v)) {
                             return this.yieldReturn(v);
                         }
@@ -16703,7 +17030,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     if (firstEnumerator.moveNext() && secondEnumerator.moveNext()) {
-                        return this.yieldReturn(selector(firstEnumerator.getCurrent(), secondEnumerator.getCurrent(), index++));
+                        return this.yieldReturn(selector(firstEnumerator.Current, secondEnumerator.Current, index++));
                     }
                     return false;
                 },
@@ -16732,7 +17059,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     if (enumerators.all(function (x) { return x.moveNext() })) {
                         var array = enumerators
-                            .select(function (x) { return x.getCurrent() })
+                            .select(function (x) { return x.Current; })
                             .toArray();
                         array.push(index++);
                         return this.yieldReturn(selector.apply(null, array));
@@ -16770,7 +17097,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         var enumerator = enumerators[index];
 
                         if (enumerator.moveNext()) {
-                            return this.yieldReturn(enumerator.getCurrent());
+                            return this.yieldReturn(enumerator.Current);
                         }
                         else {
                             enumerator.dispose();
@@ -16812,7 +17139,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         if (innerElements != null) {
                             var innerElement = innerElements[innerCount++];
                             if (innerElement !== undefined) {
-                                return this.yieldReturn(resultSelector(outerEnumerator.getCurrent(), innerElement));
+                                return this.yieldReturn(resultSelector(outerEnumerator.Current, innerElement));
                             }
 
                             innerElement = null;
@@ -16820,7 +17147,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         }
 
                         if (outerEnumerator.moveNext()) {
-                            var key = outerKeySelector(outerEnumerator.getCurrent());
+                            var key = outerKeySelector(outerEnumerator.Current);
                             innerElements = lookup.get(key).toArray();
                         } else {
                             return false;
@@ -16850,8 +17177,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     if (enumerator.moveNext()) {
-                        var innerElement = lookup.get(outerKeySelector(enumerator.getCurrent()));
-                        return this.yieldReturn(resultSelector(enumerator.getCurrent(), innerElement));
+                        var innerElement = lookup.get(outerKeySelector(enumerator.Current));
+                        return this.yieldReturn(resultSelector(enumerator.Current, innerElement));
                     }
                     return false;
                 },
@@ -16885,7 +17212,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
 
             while (enumerator.moveNext()) // case:function (predicate)
             {
-                if (predicate(enumerator.getCurrent())) return true;
+                if (predicate(enumerator.Current)) return true;
             }
             return false;
         }
@@ -16913,10 +17240,10 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () { firstEnumerator = source.getEnumerator(); },
                 function () {
                     if (secondEnumerator == null) {
-                        if (firstEnumerator.moveNext()) return this.yieldReturn(firstEnumerator.getCurrent());
+                        if (firstEnumerator.moveNext()) return this.yieldReturn(firstEnumerator.Current);
                         secondEnumerator = Enumerable.from(second).getEnumerator();
                     }
-                    if (secondEnumerator.moveNext()) return this.yieldReturn(secondEnumerator.getCurrent());
+                    if (secondEnumerator.moveNext()) return this.yieldReturn(secondEnumerator.Current);
                     return false;
                 },
                 function () {
@@ -16947,7 +17274,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                             var enumerator = enumerators[0];
 
                             if (enumerator.moveNext()) {
-                                return this.yieldReturn(enumerator.getCurrent());
+                                return this.yieldReturn(enumerator.Current);
                             }
                             else {
                                 enumerator.dispose();
@@ -16980,14 +17307,14 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     if (count == index && secondEnumerator.moveNext()) {
                         isEnumerated = true;
-                        return this.yieldReturn(secondEnumerator.getCurrent());
+                        return this.yieldReturn(secondEnumerator.Current);
                     }
                     if (firstEnumerator.moveNext()) {
                         count++;
-                        return this.yieldReturn(firstEnumerator.getCurrent());
+                        return this.yieldReturn(firstEnumerator.Current);
                     }
                     if (!isEnumerated && secondEnumerator.moveNext()) {
-                        return this.yieldReturn(secondEnumerator.getCurrent());
+                        return this.yieldReturn(secondEnumerator.Current);
                     }
                     return false;
                 },
@@ -17020,13 +17347,13 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         alternateSequence = Enumerable.make(alternateValueOrSequence);
                     }
                     enumerator = source.getEnumerator();
-                    if (enumerator.moveNext()) buffer = enumerator.getCurrent();
+                    if (enumerator.moveNext()) buffer = enumerator.Current;
                 },
                 function () {
                     while (true) {
                         if (alternateEnumerator != null) {
                             if (alternateEnumerator.moveNext()) {
-                                return this.yieldReturn(alternateEnumerator.getCurrent());
+                                return this.yieldReturn(alternateEnumerator.Current);
                             }
                             else {
                                 alternateEnumerator = null;
@@ -17034,7 +17361,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         }
 
                         if (buffer == null && enumerator.moveNext()) {
-                            buffer = enumerator.getCurrent(); // hasNext
+                            buffer = enumerator.Current; // hasNext
                             alternateEnumerator = alternateSequence.getEnumerator();
                             continue; // GOTO
                         }
@@ -17065,7 +17392,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         var enumerator = this.getEnumerator();
         try {
             while (enumerator.moveNext()) {
-                if (comparer.equals2(enumerator.getCurrent(), value)) return true;
+                if (comparer.equals2(enumerator.Current, value)) return true;
             }
             return false;
         }
@@ -17087,7 +17414,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     if (enumerator.moveNext()) {
                         isFirst = false;
-                        return this.yieldReturn(enumerator.getCurrent());
+                        return this.yieldReturn(enumerator.Current);
                     }
                     else if (isFirst) {
                         isFirst = false;
@@ -17120,12 +17447,12 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     while (enumerator.moveNext()) {
-                        var key = compareSelector(enumerator.getCurrent());
+                        var key = compareSelector(enumerator.Current);
 
                         if (initial) {
                             initial = false;
                             compareKey = key;
-                            return this.yieldReturn(enumerator.getCurrent());
+                            return this.yieldReturn(enumerator.Current);
                         }
 
                         if (compareKey === key) {
@@ -17133,7 +17460,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         }
 
                         compareKey = key;
-                        return this.yieldReturn(enumerator.getCurrent());
+                        return this.yieldReturn(enumerator.Current);
                     }
                     return this.yieldBreak();
                 },
@@ -17158,7 +17485,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     while (enumerator.moveNext()) {
-                        var current = enumerator.getCurrent();
+                        var current = enumerator.Current;
                         if (!keys.containsKey(current)) {
                             keys.add(current);
                             return this.yieldReturn(current);
@@ -17190,7 +17517,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     while (enumerator.moveNext()) {
-                        var current = enumerator.getCurrent();
+                        var current = enumerator.Current;
                         if (!outs.containsKey(current) && keys.containsKey(current)) {
                             outs.add(current);
                             return this.yieldReturn(current);
@@ -17213,7 +17540,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             try {
                 while (firstEnumerator.moveNext()) {
                     if (!secondEnumerator.moveNext()
-                    || !comparer.equals2(firstEnumerator.getCurrent(), secondEnumerator.getCurrent())) {
+                    || !comparer.equals2(firstEnumerator.Current, secondEnumerator.Current)) {
                         return false;
                     }
                 }
@@ -17247,7 +17574,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     var current;
                     if (secondEnumerator === undefined) {
                         while (firstEnumerator.moveNext()) {
-                            current = firstEnumerator.getCurrent();
+                            current = firstEnumerator.Current;
                             if (!keys.containsKey(current)) {
                                 keys.add(current);
                                 return this.yieldReturn(current);
@@ -17256,7 +17583,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                         secondEnumerator = Enumerable.from(second).getEnumerator();
                     }
                     while (secondEnumerator.moveNext()) {
-                        current = secondEnumerator.getCurrent();
+                        current = secondEnumerator.Current;
                         if (!keys.containsKey(current)) {
                             keys.add(current);
                             return this.yieldReturn(current);
@@ -17394,8 +17721,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     while (enumerator.moveNext()) {
                         return (resultSelector == null)
-                            ? this.yieldReturn(enumerator.getCurrent())
-                            : this.yieldReturn(resultSelector(enumerator.getCurrent().key(), enumerator.getCurrent()));
+                            ? this.yieldReturn(enumerator.Current)
+                            : this.yieldReturn(resultSelector(enumerator.Current.key(), enumerator.Current));
                     }
                     return false;
                 },
@@ -17431,15 +17758,15 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     enumerator = source.getEnumerator();
                     if (enumerator.moveNext()) {
-                        key = keySelector(enumerator.getCurrent());
-                        group.push(elementSelector(enumerator.getCurrent()));
+                        key = keySelector(enumerator.Current);
+                        group.push(elementSelector(enumerator.Current));
                     }
                 },
                 function () {
                     var hasNext;
                     while ((hasNext = enumerator.moveNext()) == true) {
-                        if (comparer.equals2(key, keySelector(enumerator.getCurrent()))) {
-                            group.push(elementSelector(enumerator.getCurrent()));
+                        if (comparer.equals2(key, keySelector(enumerator.Current))) {
+                            group.push(elementSelector(enumerator.Current));
                         }
                         else break;
                     }
@@ -17449,8 +17776,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                             ? resultSelector(key, Enumerable.from(group))
                             : resultSelector(key, group);
                         if (hasNext) {
-                            key = keySelector(enumerator.getCurrent());
-                            group = [elementSelector(enumerator.getCurrent())];
+                            key = keySelector(enumerator.Current);
+                            group = [elementSelector(enumerator.Current)];
                         }
                         else group = [];
 
@@ -17475,7 +17802,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     var array = [];
                     var index = 0;
                     while (enumerator.moveNext()) {
-                        array.push(enumerator.getCurrent());
+                        array.push(enumerator.Current);
                         if (++index >= count) return this.yieldReturn(array);
                     }
                     if (array.length > 0) return this.yieldReturn(array);
@@ -17777,7 +18104,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -17800,16 +18127,16 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     while (!isSkipEnd) {
                         if (enumerator.moveNext()) {
-                            if (!predicate(enumerator.getCurrent(), index++)) {
+                            if (!predicate(enumerator.Current, index++)) {
                                 isSkipEnd = true;
-                                return this.yieldReturn(enumerator.getCurrent());
+                                return this.yieldReturn(enumerator.Current);
                             }
                             continue;
                         } else return false;
                     }
 
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -17827,7 +18154,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () { enumerator = source.getEnumerator(); },
                 function () {
                     return (index++ < count && enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () { Utils.dispose(enumerator); }
@@ -17848,8 +18175,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             return new IEnumerator(
                 function () { enumerator = source.getEnumerator(); },
                 function () {
-                    return (enumerator.moveNext() && predicate(enumerator.getCurrent(), index++))
-                        ? this.yieldReturn(enumerator.getCurrent())
+                    return (enumerator.moveNext() && predicate(enumerator.Current, index++))
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -17873,10 +18200,10 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     while (enumerator.moveNext()) {
                         if (q.length == count) {
-                            q.push(enumerator.getCurrent());
+                            q.push(enumerator.Current);
                             return this.yieldReturn(q.shift());
                         }
-                        q.push(enumerator.getCurrent());
+                        q.push(enumerator.Current);
                     }
                     return false;
                 },
@@ -17899,12 +18226,12 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     if (enumerator == null) {
 	                    while (sourceEnumerator.moveNext()) {
 	                        if (q.length == count) q.shift();
-	                        q.push(sourceEnumerator.getCurrent());
+	                        q.push(sourceEnumerator.Current);
 	                    }
                         enumerator = Enumerable.from(q).getEnumerator();
                     }
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -18062,8 +18389,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () { enumerator = source.getEnumerator(); },
                 function () {
                     if (enumerator.moveNext()) {
-                        action(enumerator.getCurrent(), index++);
-                        return this.yieldReturn(enumerator.getCurrent());
+                        action(enumerator.Current, index++);
+                        return this.yieldReturn(enumerator.Current);
                     }
                     return false;
                 },
@@ -18082,7 +18409,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         var enumerator = this.getEnumerator();
         try {
             while (enumerator.moveNext()) {
-                if (action(enumerator.getCurrent(), index++) === false) break;
+                if (action(enumerator.Current, index++) === false) break;
             }
         } finally {
             Utils.dispose(enumerator);
@@ -18141,7 +18468,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 },
                 function () {
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () { Utils.dispose(enumerator); });
@@ -18164,7 +18491,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     if (disposed) throw new Error("enumerator is disposed");
 
                     return (sharedEnumerator.moveNext())
-                        ? this.yieldReturn(sharedEnumerator.getCurrent())
+                        ? this.yieldReturn(sharedEnumerator.Current)
                         : false;
                 },
                 Functions.Blank
@@ -18197,7 +18524,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                     index++;
                     if (cache.length <= index) {
                         return (enumerator.moveNext())
-                            ? this.yieldReturn(cache[index] = enumerator.getCurrent())
+                            ? this.yieldReturn(cache[index] = enumerator.Current)
                             : false;
                     }
 
@@ -18226,7 +18553,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () {
                     try {
                         return (enumerator.moveNext())
-                            ? this.yieldReturn(enumerator.getCurrent())
+                            ? this.yieldReturn(enumerator.Current)
                             : false;
                     } catch (e) {
                         handler(e);
@@ -18248,7 +18575,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 function () { enumerator = source.getEnumerator(); },
                 function () {
                     return (enumerator.moveNext())
-                        ? this.yieldReturn(enumerator.getCurrent())
+                        ? this.yieldReturn(enumerator.Current)
                         : false;
                 },
                 function () {
@@ -18561,8 +18888,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             function () { enumerator = source.getEnumerator(); },
             function () {
                 while (enumerator.moveNext()) {
-                    if (predicate(enumerator.getCurrent())) {
-                        return this.yieldReturn(enumerator.getCurrent());
+                    if (predicate(enumerator.Current)) {
+                        return this.yieldReturn(enumerator.Current);
                     }
                 }
                 return false;
@@ -18609,8 +18936,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             function () { enumerator = source.getEnumerator(); },
             function () {
                 while (enumerator.moveNext()) {
-                    if (predicate == null || predicate(enumerator.getCurrent())) {
-                        return this.yieldReturn(selector(enumerator.getCurrent()));
+                    if (predicate == null || predicate(enumerator.Current)) {
+                        return this.yieldReturn(selector(enumerator.Current));
                     }
                 }
                 return false;
@@ -18721,8 +19048,8 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
 
                 System.Guid.rnd.nextBytes(a);
 
-                a[7] = (a[7] & 15 | 64) & 255;
-                a[8] = (a[8] & 191 | 128) & 255;
+                a[System.Array.index(7, a)] = (a[System.Array.index(7, a)] & 15 | 64) & 255;
+                a[System.Array.index(8, a)] = (a[System.Array.index(8, a)] & 191 | 128) & 255;
 
                 return new System.Guid.$ctor1(a);
             },
@@ -18775,17 +19102,17 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 throw new System.ArgumentException(System.String.format(System.Guid.error1, Bridge.box(16, System.Int32)));
             }
 
-            this._a = (b[3] << 24) | (b[2] << 16) | (b[1] << 8) | b[0];
-            this._b = Bridge.Int.sxs(((b[5] << 8) | b[4]) & 65535);
-            this._c = Bridge.Int.sxs(((b[7] << 8) | b[6]) & 65535);
-            this._d = b[8];
-            this._e = b[9];
-            this._f = b[10];
-            this._g = b[11];
-            this._h = b[12];
-            this._i = b[13];
-            this._j = b[14];
-            this._k = b[15];
+            this._a = (b[System.Array.index(3, b)] << 24) | (b[System.Array.index(2, b)] << 16) | (b[System.Array.index(1, b)] << 8) | b[System.Array.index(0, b)];
+            this._b = Bridge.Int.sxs(((b[System.Array.index(5, b)] << 8) | b[System.Array.index(4, b)]) & 65535);
+            this._c = Bridge.Int.sxs(((b[System.Array.index(7, b)] << 8) | b[System.Array.index(6, b)]) & 65535);
+            this._d = b[System.Array.index(8, b)];
+            this._e = b[System.Array.index(9, b)];
+            this._f = b[System.Array.index(10, b)];
+            this._g = b[System.Array.index(11, b)];
+            this._h = b[System.Array.index(12, b)];
+            this._i = b[System.Array.index(13, b)];
+            this._j = b[System.Array.index(14, b)];
+            this._k = b[System.Array.index(15, b)];
         },
         $ctor5: function (a, b, c, d, e, f, g, h, i, j, k) {
             this.$initialize();
@@ -18814,14 +19141,14 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             this._a = a;
             this._b = b;
             this._c = c;
-            this._d = d[0];
-            this._e = d[1];
-            this._f = d[2];
-            this._g = d[3];
-            this._h = d[4];
-            this._i = d[5];
-            this._j = d[6];
-            this._k = d[7];
+            this._d = d[System.Array.index(0, d)];
+            this._e = d[System.Array.index(1, d)];
+            this._f = d[System.Array.index(2, d)];
+            this._g = d[System.Array.index(3, d)];
+            this._h = d[System.Array.index(4, d)];
+            this._i = d[System.Array.index(5, d)];
+            this._j = d[System.Array.index(6, d)];
+            this._k = d[System.Array.index(7, d)];
         },
         $ctor2: function (a, b, c, d, e, f, g, h, i, j, k) {
             this.$initialize();
@@ -18872,22 +19199,22 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         toByteArray: function () {
             var g = System.Array.init(16, 0, System.Byte);
 
-            g[0] = this._a & 255;
-            g[1] = (this._a >> 8) & 255;
-            g[2] = (this._a >> 16) & 255;
-            g[3] = (this._a >> 24) & 255;
-            g[4] = this._b & 255;
-            g[5] = (this._b >> 8) & 255;
-            g[6] = this._c & 255;
-            g[7] = (this._c >> 8) & 255;
-            g[8] = this._d;
-            g[9] = this._e;
-            g[10] = this._f;
-            g[11] = this._g;
-            g[12] = this._h;
-            g[13] = this._i;
-            g[14] = this._j;
-            g[15] = this._k;
+            g[System.Array.index(0, g)] = this._a & 255;
+            g[System.Array.index(1, g)] = (this._a >> 8) & 255;
+            g[System.Array.index(2, g)] = (this._a >> 16) & 255;
+            g[System.Array.index(3, g)] = (this._a >> 24) & 255;
+            g[System.Array.index(4, g)] = this._b & 255;
+            g[System.Array.index(5, g)] = (this._b >> 8) & 255;
+            g[System.Array.index(6, g)] = this._c & 255;
+            g[System.Array.index(7, g)] = (this._c >> 8) & 255;
+            g[System.Array.index(8, g)] = this._d;
+            g[System.Array.index(9, g)] = this._e;
+            g[System.Array.index(10, g)] = this._f;
+            g[System.Array.index(11, g)] = this._g;
+            g[System.Array.index(12, g)] = this._h;
+            g[System.Array.index(13, g)] = this._i;
+            g[System.Array.index(14, g)] = this._j;
+            g[System.Array.index(15, g)] = this._k;
 
             return g;
         },
@@ -18933,7 +19260,7 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
                 } else if (Bridge.referenceEquals(format, "B") || Bridge.referenceEquals(format, "P")) {
                     var b = Bridge.referenceEquals(format, "B") ? System.Array.init([123, 125], System.Char) : System.Array.init([40, 41], System.Char);
 
-                    if ((input.charCodeAt(0) === b[0]) && (input.charCodeAt(((input.length - 1) | 0)) === b[1])) {
+                    if ((input.charCodeAt(0) === b[System.Array.index(0, b)]) && (input.charCodeAt(((input.length - 1) | 0)) === b[System.Array.index(1, b)])) {
                         p = true;
                         input = input.substr(1, ((input.length - 2) | 0));
                     }
@@ -18997,17 +19324,17 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
             this._b = Bridge.Int.sxs((System.UInt16.parse(s.substr(8, 4), 16)) & 65535);
             this._c = Bridge.Int.sxs((System.UInt16.parse(s.substr(12, 4), 16)) & 65535);
             for (var i = 8; i < 16; i = (i + 1) | 0) {
-                r[((i - 8) | 0)] = System.Byte.parse(s.substr(((i * 2) | 0), 2), 16);
+                r[System.Array.index(((i - 8) | 0), r)] = System.Byte.parse(s.substr(((i * 2) | 0), 2), 16);
             }
 
-            this._d = r[0];
-            this._e = r[1];
-            this._f = r[2];
-            this._g = r[3];
-            this._h = r[4];
-            this._i = r[5];
-            this._j = r[6];
-            this._k = r[7];
+            this._d = r[System.Array.index(0, r)];
+            this._e = r[System.Array.index(1, r)];
+            this._f = r[System.Array.index(2, r)];
+            this._g = r[System.Array.index(3, r)];
+            this._h = r[System.Array.index(4, r)];
+            this._i = r[System.Array.index(5, r)];
+            this._j = r[System.Array.index(6, r)];
+            this._k = r[System.Array.index(7, r)];
         },
         $clone: function (to) { return this; }
     });
@@ -19558,9 +19885,19 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         },
 
         config: {
+            properties: {
+                Count: {
+                    get: function() {
+                        return this._capcount;
+                    }
+                }    
+            },
+
             alias: [
             "getEnumerator", "System$Collections$IEnumerable$getEnumerator",
-            "getCount", "System$Collections$ICollection$getCount"
+            "getCount", "System$Collections$ICollection$getCount",
+            "Count", "System$Collections$ICollection$Count",
+            "copyTo", "System$Collections$ICollection$copyTo"
             ]
         },
 
@@ -19656,10 +19993,18 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         },
 
         config: {
+			properties: {
+				Current: {
+					get: function () {
+						return this.getCurrent();
+					}
+				}
+			},
             alias: [
                 "getCurrent", "System$Collections$IEnumerator$getCurrent",
                 "moveNext", "System$Collections$IEnumerator$moveNext",
-                "reset", "System$Collections$IEnumerator$reset"
+                "reset", "System$Collections$IEnumerator$reset",
+				"Current", "System$Collections$IEnumerator$Current"
             ]
         },
 
@@ -19771,9 +20116,18 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         },
 
         config: {
+            properties: {
+                Count: {
+                    get: function () {
+                        return this._match._matchcount.length;
+                    }
+                }
+            },
             alias: [
             "getEnumerator", "System$Collections$IEnumerable$getEnumerator",
-            "getCount", "System$Collections$ICollection$getCount"
+            "getCount", "System$Collections$ICollection$getCount",
+            "Count", "System$Collections$ICollection$Count",
+            "copyTo", "System$Collections$ICollection$copyTo"
             ]
         },
 
@@ -19907,10 +20261,19 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         },
 
         config: {
+			properties: {
+				Current: {
+					get: function () {
+						return this.getCurrent();
+					}
+				}
+			},
+			
             alias: [
                 "getCurrent", "System$Collections$IEnumerator$getCurrent",
                 "moveNext", "System$Collections$IEnumerator$moveNext",
-                "reset", "System$Collections$IEnumerator$reset"
+                "reset", "System$Collections$IEnumerator$reset",
+				"Current", "System$Collections$IEnumerator$Current"
             ]
         },
 
@@ -20142,9 +20505,18 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         },
 
         config: {
+            properties: {
+                Count: {
+                    get: function () {
+                        return this.getCount();
+                    }
+                }
+            },
             alias: [
             "getEnumerator", "System$Collections$IEnumerable$getEnumerator",
-            "getCount", "System$Collections$ICollection$getCount"
+            "getCount", "System$Collections$ICollection$getCount",
+            "Count", "System$Collections$ICollection$Count",
+            "copyTo", "System$Collections$ICollection$copyTo"
             ]
         },
 
@@ -20265,10 +20637,19 @@ Bridge.Class.addExtend(System.String, [System.IComparable$1(System.String), Syst
         },
 
         config: {
+			properties: {
+				Current: {
+					get: function () {
+						return this.getCurrent();
+					}
+				}
+			},
+			
             alias: [
                 "getCurrent", "System$Collections$IEnumerator$getCurrent",
                 "moveNext", "System$Collections$IEnumerator$moveNext",
-                "reset", "System$Collections$IEnumerator$reset"
+                "reset", "System$Collections$IEnumerator$reset",
+				"Current", "System$Collections$IEnumerator$Current"
             ]
         },
 
@@ -24877,22 +25258,22 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
             //This algorithm comes from Numerical Recipes in C (2nd Ed.)
             var subtraction = (seed === -2147483648) ? 2147483647 : Math.abs(seed);
             mj = (System.Random.MSEED - subtraction) | 0;
-            this.seedArray[55] = mj;
+            this.seedArray[System.Array.index(55, this.seedArray)] = mj;
             mk = 1;
             for (var i = 1; i < 55; i = (i + 1) | 0) { //Apparently the range [1..55] is special (Knuth) and so we're wasting the 0'th position.
                 ii = (((21 * i) | 0)) % 55;
-                this.seedArray[ii] = mk;
+                this.seedArray[System.Array.index(ii, this.seedArray)] = mk;
                 mk = (mj - mk) | 0;
                 if (mk < 0) {
                     mk = (mk + System.Random.MBIG) | 0;
                 }
-                mj = this.seedArray[ii];
+                mj = this.seedArray[System.Array.index(ii, this.seedArray)];
             }
             for (var k = 1; k < 5; k = (k + 1) | 0) {
                 for (var i1 = 1; i1 < 56; i1 = (i1 + 1) | 0) {
-                    this.seedArray[i1] = (this.seedArray[i1] - this.seedArray[((1 + (((i1 + 30) | 0)) % 55) | 0)]) | 0;
-                    if (this.seedArray[i1] < 0) {
-                        this.seedArray[i1] = (this.seedArray[i1] + System.Random.MBIG) | 0;
+                    this.seedArray[System.Array.index(i1, this.seedArray)] = (this.seedArray[System.Array.index(i1, this.seedArray)] - this.seedArray[System.Array.index(((1 + (((i1 + 30) | 0)) % 55) | 0), this.seedArray)]) | 0;
+                    if (this.seedArray[System.Array.index(i1, this.seedArray)] < 0) {
+                        this.seedArray[System.Array.index(i1, this.seedArray)] = (this.seedArray[System.Array.index(i1, this.seedArray)] + System.Random.MBIG) | 0;
                     }
                 }
             }
@@ -24918,7 +25299,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                 locINextp = 1;
             }
 
-            retVal = (this.seedArray[locINext] - this.seedArray[locINextp]) | 0;
+            retVal = (this.seedArray[System.Array.index(locINext, this.seedArray)] - this.seedArray[System.Array.index(locINextp, this.seedArray)]) | 0;
 
             if (retVal === System.Random.MBIG) {
                 retVal = (retVal - 1) | 0;
@@ -24928,7 +25309,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                 retVal = (retVal + System.Random.MBIG) | 0;
             }
 
-            this.seedArray[locINext] = retVal;
+            this.seedArray[System.Array.index(locINext, this.seedArray)] = retVal;
 
             this.inext = locINext;
             this.inextp = locINextp;
@@ -24981,7 +25362,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                 throw new System.ArgumentNullException("buffer");
             }
             for (var i = 0; i < buffer.length; i = (i + 1) | 0) {
-                buffer[i] = (this.internalSample() % (256)) & 255;
+                buffer[System.Array.index(i, buffer)] = (this.internalSample() % (256)) & 255;
             }
         }
     });
@@ -25151,10 +25532,10 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                 var i = 0;
                 var index = startIndex;
                 for (i = 0; i < chArrayLength; i = (i + 3) | 0) {
-                    var b = value[Bridge.identity(index, (index = (index + 1) | 0))];
-                    chArray[i] = System.BitConverter.getHexValue(((Bridge.Int.div(b, 16)) | 0));
-                    chArray[((i + 1) | 0)] = System.BitConverter.getHexValue(b % 16);
-                    chArray[((i + 2) | 0)] = 45;
+                    var b = value[System.Array.index(Bridge.identity(index, (index = (index + 1) | 0)), value)];
+                    chArray[System.Array.index(i, chArray)] = System.BitConverter.getHexValue(((Bridge.Int.div(b, 16)) | 0));
+                    chArray[System.Array.index(((i + 1) | 0), chArray)] = System.BitConverter.getHexValue(b % 16);
+                    chArray[System.Array.index(((i + 2) | 0), chArray)] = 45;
                 }
 
                 // We don't need the last '-' character
@@ -25177,7 +25558,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
             toBoolean: function (value, startIndex) {
                 System.BitConverter.checkArguments(value, startIndex, 1);
 
-                return (value[startIndex] === 0) ? false : true;
+                return (value[System.Array.index(startIndex, value)] === 0) ? false : true;
             },
             doubleToInt64Bits: function (value) {
                 var view = System.BitConverter.view(8);
@@ -25208,11 +25589,11 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
 
                 if (System.BitConverter.isLittleEndian) {
                     for (var i = (count - 1) | 0; i >= 0; i = (i - 1) | 0) {
-                        r[i] = view.getUint8(Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0)));
+                        r[System.Array.index(i, r)] = view.getUint8(Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0)));
                     }
                 } else {
                     for (var i1 = 0; i1 < count; i1 = (i1 + 1) | 0) {
-                        r[i1] = view.getUint8(Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0)));
+                        r[System.Array.index(i1, r)] = view.getUint8(Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0)));
                     }
                 }
 
@@ -25227,11 +25608,11 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
 
                 if (System.BitConverter.isLittleEndian) {
                     for (var i = (count - 1) | 0; i >= 0; i = (i - 1) | 0) {
-                        view.setUint8(i, value[Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0))]);
+                        view.setUint8(i, value[System.Array.index(Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0)), value)]);
                     }
                 } else {
                     for (var i1 = 0; i1 < count; i1 = (i1 + 1) | 0) {
-                        view.setUint8(i1, value[Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0))]);
+                        view.setUint8(i1, value[System.Array.index(Bridge.identity(startIndex, (startIndex = (startIndex + 1) | 0)), value)]);
                     }
                 }
             },
@@ -25421,16 +25802,22 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
             CONSOLE_MESSAGES_ID: "bridge-console-messages",
             position: "horizontal",
             instance: null,
-            getInstance: function () {
-                if (Bridge.Console.instance == null) {
-                    Bridge.Console.instance = new Bridge.Console();
-                }
+            config: {
+                properties: {
+                    Instance: {
+                        get: function () {
+                            if (Bridge.Console.instance == null) {
+                                Bridge.Console.instance = new Bridge.Console();
+                            }
 
-                return Bridge.Console.instance;
+                            return Bridge.Console.instance;
+                        }
+                    }
+                }
             },
             logBase: function (value, messageType) {
                 if (messageType === void 0) { messageType = 0; }
-                var self = Bridge.Console.getInstance();
+                var self = Bridge.Console.Instance;
 
                 var v = value != null ? value.toString() : "";
 
@@ -25470,7 +25857,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                     return;
                 }
 
-                var self = Bridge.Console.getInstance();
+                var self = Bridge.Console.Instance;
 
                 if (self.hidden) {
                     return;
@@ -25479,7 +25866,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                 self.close();
             },
             show: function () {
-                var self = Bridge.Console.getInstance();
+                var self = Bridge.Console.Instance;
 
                 if (!self.hidden) {
                     return;
@@ -25488,7 +25875,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
                 self.init(true);
             },
             toggle: function () {
-                if (Bridge.Console.getInstance().hidden) {
+                if (Bridge.Console.Instance.hidden) {
                     Bridge.Console.show();
                 } else {
                     Bridge.Console.hide();
@@ -25642,13 +26029,13 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
             }
         },
         showTooltip: function () {
-            var self = Bridge.Console.getInstance();
+            var self = Bridge.Console.Instance;
             self.tooltip.style.right = "20px";
             self.tooltip.style.visibility = "visible";
             self.tooltip.style.opacity = "1";
         },
         hideTooltip: function () {
-            var self = Bridge.Console.getInstance();
+            var self = Bridge.Console.Instance;
             self.tooltip.style.right = "30px";
             self.tooltip.style.opacity = "0";
         },
@@ -25747,7 +26134,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
             $t = Bridge.getEnumerator(attrs);
             try {
                 while ($t.moveNext()) {
-                    var item = $t.getCurrent();
+                    var item = $t.Current;
                     el.setAttribute(item.key, item.value);
                 }
             }finally {
@@ -25762,7 +26149,7 @@ Bridge.define("System.Text.RegularExpressions.RegexParser", {
             $t = Bridge.getEnumerator(obj);
             try {
                 while ($t.moveNext()) {
-                    var item = $t.getCurrent();
+                    var item = $t.Current;
                     str = System.String.concat(str, (System.String.concat(item.key.toLowerCase(), ":", item.value, ";")));
                 }
             }finally {

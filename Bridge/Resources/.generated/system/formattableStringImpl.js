@@ -2,6 +2,20 @@
         inherits: [System.FormattableString],
         args: null,
         format: null,
+        config: {
+            properties: {
+                ArgumentCount: {
+                    get: function () {
+                        return this.args.length;
+                    }
+                },
+                Format: {
+                    get: function () {
+                        return this.format;
+                    }
+                }
+            }
+        },
         ctor: function (format, args) {
             if (args === void 0) { args = []; }
 
@@ -10,14 +24,8 @@
             this.format = format;
             this.args = args;
         },
-        getArgumentCount: function () {
-            return this.args.length;
-        },
-        getFormat: function () {
-            return this.format;
-        },
         getArgument: function (index) {
-            return this.args[index];
+            return this.args[System.Array.index(index, this.args)];
         },
         getArguments: function () {
             return this.args;

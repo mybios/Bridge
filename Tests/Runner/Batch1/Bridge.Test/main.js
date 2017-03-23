@@ -5,15 +5,21 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
         statics: {
             instanceFabric: null,
             fixtureFabric: Bridge.getDefaultValue(T),
-            getFixtureFabric: function () {
-                if (Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric == null) {
-                    Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric = Bridge.createInstance(T);
-                }
+            config: {
+                properties: {
+                    FixtureFabric: {
+                        get: function () {
+                            if (Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric == null) {
+                                Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric = Bridge.createInstance(T);
+                            }
 
-                return Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric;
-            },
-            setFixtureFabric: function (value) {
-                Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric = value;
+                            return Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric;
+                        },
+                        set: function (value) {
+                            Bridge.Test.Runtime.TestFixture$1(T).fixtureFabric = value;
+                        }
+                    }
+                }
             },
             instanceFabric$1: function (type) {
                 if (Bridge.Test.Runtime.TestFixture$1(T).instanceFabric == null) {
@@ -32,7 +38,7 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
                 }
 
                 var instance = Bridge.Test.Runtime.TestFixture$1(T).instanceFabric$1(type);
-                instance.setFixture(needInstance ? Bridge.Test.Runtime.TestFixture$1(T).getFixtureFabric() : Bridge.getDefaultValue(T));
+                instance.Fixture = needInstance ? Bridge.Test.Runtime.TestFixture$1(T).FixtureFabric : Bridge.getDefaultValue(T);
 
                 var fixtureContext = instance.getContext();
 
@@ -84,13 +90,14 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
                     return;
                 }
 
-                assert[Bridge.Test.Runtime.ContextHelper.contextName] = ctx;
+                assert[System.Array.index(Bridge.Test.Runtime.ContextHelper.contextName, assert)] = ctx;
             },
             getTestId: function (details) {
                 return Bridge.as(details.testId, System.String);
             },
             getAssert: function () {
-                var a = QUnit.config.current.assert;
+                var $t;
+                var a = ($t = QUnit.config.current).assert;
 
                 return a;
             },
@@ -99,7 +106,7 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
                     return null;
                 }
 
-                return Bridge.as(assert[Bridge.Test.Runtime.ContextHelper.contextName], Bridge.Test.Runtime.Context);
+                return Bridge.as(assert[System.Array.index(Bridge.Test.Runtime.ContextHelper.contextName, assert)], Bridge.Test.Runtime.Context);
             },
             getContext: function () {
                 return Bridge.Test.Runtime.ContextHelper.getContext$1(Bridge.Test.Runtime.ContextHelper.getAssert());
@@ -122,7 +129,7 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
                     return null;
                 }
 
-                return source[0];
+                return source[System.Array.index(0, source)];
             },
             adjustSourceElement: function (ctx, testItem) {
                 var $t;
@@ -191,7 +198,7 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
 
                     var els = testItem.getElementsByTagName("ol");
                     if (els != null && els.length > 0) {
-                        assertList = els[0];
+                        assertList = els[System.Array.index(0, els)];
                     }
 
                     var testTitle = testItem.firstChild;
@@ -222,7 +229,7 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
                     return null;
                 }
 
-                return source[0];
+                return source[System.Array.index(0, source)];
             },
             getTestSource$1: function (testId) {
                 var output = Bridge.Test.Runtime.ContextHelper.getTestOutput(testId);
@@ -278,7 +285,7 @@ Bridge.assembly("Bridge.Test.Bridge.ClientTest", function ($asm, globals) {
                 $t = Bridge.getEnumerator(dest);
                 try {
                     while ($t.moveNext()) {
-                        var el = $t.getCurrent();
+                        var el = $t.Current;
                         if (has) {
                             Bridge.Test.Runtime.ContextHelper.addClass(el, name);
                         } else {

@@ -5,7 +5,7 @@
             }
 
             if (indices[0] < 0 || indices[0] >= (arr.$s ? arr.$s[0] : arr.length)) {
-                throw new System.ArgumentException("Index 0 out of range");
+                throw new System.IndexOutOfRangeException("Index 0 out of range");
             }
 
             var idx = indices[0],
@@ -14,7 +14,7 @@
             if (arr.$s) {
                 for (i = 1; i < arr.$s.length; i++) {
                     if (indices[i] < 0 || indices[i] >= arr.$s[i]) {
-                        throw new System.ArgumentException("Index " + i + " out of range");
+                        throw new System.IndexOutOfRangeException("Index " + i + " out of range");
                     }
 
                     idx = idx * arr.$s[i] + indices[i];
@@ -22,6 +22,13 @@
             }
 
             return idx;
+        },
+
+        index: function (index, arr) {
+            if (index < 0 || index >= arr.length) {
+                throw new System.IndexOutOfRangeException();
+            }
+            return index;
         },
 
         $get: function (indices) {
@@ -240,13 +247,20 @@
         },
 
         getCount: function (obj, T) {
-            var name;
+            var name,
+                v;
             if (Bridge.isArray(obj)) {
                 return obj.length;
             } else if (T && Bridge.isFunction(obj[name = "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getCount"])) {
                 return obj[name]();
             } else if (Bridge.isFunction(obj[name = "System$Collections$ICollection$getCount"])) {
                 return obj[name]();
+            } else if (T && (v = obj["System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$Count"]) !== undefined) {
+                return v;
+            } else if ((v = obj["System$Collections$ICollection$Count"]) !== undefined) {
+                return v;
+            } else if ((v = obj.Count) !== undefined) {
+                return v;
             } else if (Bridge.isFunction(obj.getCount)) {
                 return obj.getCount();
             }
@@ -255,19 +269,26 @@
         },
 
         getIsReadOnly: function (obj, T) {
-            var name;
+            var name,
+                v;
 
             if (Bridge.isArray(obj)) {
                 return T ? true : false;
             } else if (T && Bridge.isFunction(obj[name = "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getIsReadOnly"])) {
                 return obj[name]();
+            } else if (T && (v = obj["System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$IsReadOnly"]) !== undefined) {
+                return v;
             } else if (Bridge.isFunction(obj[name = "System$Collections$IList$getIsReadOnly"])) {
                 return obj[name]();
+            } else if ((v = obj["System$Collections$IList$IsReadOnly"]) !== undefined) {
+                return v;
+            } else if ((v = obj.IsReadOnly) !== undefined) {
+                return v;
             } else if (Bridge.isFunction(obj.getIsReadOnly)) {
                 return obj.getIsReadOnly();
             }
 
-            return 0;
+            return false;
         },
 
         checkReadOnly: function(obj, T, msg) {
@@ -758,7 +779,7 @@
 
                 try {
                     while (e.moveNext()) {
-                        arr.push(e.getCurrent());
+                        arr.push(e.Current);
                     }
                 } finally {
                     if (Bridge.is(e, System.IDisposable)) {
@@ -1027,7 +1048,7 @@
 
             if (!result) {
                 name = Bridge.getTypeName(t) + "[" + System.String.fromCharCount(",".charCodeAt(0), rank - 1) + "]";
-
+                var old = Bridge.Class.staticInitAllow;
                 result = Bridge.define(name, {
                     $inherits: [Array, System.Collections.ICollection, System.ICloneable, System.Collections.Generic.IList$1(t)],
                     $noRegister: true,
@@ -1060,7 +1081,12 @@
                 });
 
                 typeCache.push(result);
-                Bridge.init();
+
+                Bridge.Class.staticInitAllow = true;
+                if (result.$staticInit) {
+                    result.$staticInit();
+                }
+                Bridge.Class.staticInitAllow = old;
             }
 
             if (arr) {

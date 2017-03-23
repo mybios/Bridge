@@ -64,7 +64,7 @@
             public const string INIT = "init";
             public const string CLONE = "$clone";
             public const string MOVE_NEXT = "moveNext";
-            public const string GET_CURRENT = "getCurrent";
+            public const string GET_CURRENT = "Current";
             public const string TOSTIRNG = "toString";
             public const string EQUALS = "equals";
             public const string GETHASHCODE = "getHashCode";
@@ -200,6 +200,7 @@
                     private const string DOTNAME = System.DOTNAME + "Array.";
 
                     public const string CREATE = DOTNAME + "create";
+                    public const string INDEX = DOTNAME + "index";
                     public const string INIT = DOTNAME + "init";
                     public const string MIN = DOTNAME + "min";
                     public const string TYPE = DOTNAME + "type";
@@ -268,6 +269,7 @@
 
                 public const string APPLY = DOTNAME + "apply";
                 public const string ASSEMBLY = DOTNAME + "assembly";
+                public const string ENSURE_BASE_PROPERTY = DOTNAME + "ensureBaseProperty";
                 public const string IS = DOTNAME + "is";
                 public const string SET_METADATA = DOTNAME + "setMetadata";
                 public const string GET_TYPE_ALIAS = DOTNAME + "getTypeAlias";

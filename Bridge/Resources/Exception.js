@@ -1,4 +1,32 @@
-    Bridge.define("System.Exception", {
+Bridge.define("System.Exception", {
+        config: {
+            properties: {
+                Message: {
+                    get: function() {
+                        return this.message;
+                    }
+                },
+
+                InnerException: {
+                    get: function () {
+                        return this.innerException;
+                    }
+                },
+
+                StackTrace: {
+                    get: function () {
+                        return this.errorStack.stack;
+                    }
+                },
+
+                Data: {
+                    get: function () {
+                        return this.data;
+                    }
+                }
+            }        
+        },
+
         ctor: function (message, innerException) {
             this.$initialize();
             this.message = message ? message : ("Exception of type '" + Bridge.getTypeName(this) + "' was thrown.");
@@ -7,24 +35,31 @@
             this.data = new(System.Collections.Generic.Dictionary$2(System.Object, System.Object))();
         },
 
-        getMessage: function () {
-            return this.message;
-        },
-
-        getInnerException: function () {
-            return this.innerException;
-        },
-
-        getStackTrace: function () {
-            return this.errorStack.stack;
-        },
-
-        getData: function () {
-            return this.data;
+        getBaseException: function() {
+            var inner = this.innerException;
+            var back = this;
+            
+            while (inner != null) {
+                back = inner;
+                inner = inner.innerException;
+            }
+            
+            return back;  
         },
 
         toString: function () {
-            return this.getMessage();
+            var builder = Bridge.getTypeName(this);
+            if (this.Message != null) {
+                builder += ": " + this.Message + "\n";
+            } else {
+                builder += "\n";
+            }
+                
+            if (this.StackTrace != null) {
+                builder += this.StackTrace + "\n";
+            }
+                
+            return builder;
         },
 
         statics: {
@@ -168,14 +203,20 @@
     Bridge.define("System.ArgumentException", {
         inherits: [System.Exception],
 
+        config: {
+            properties: {
+                ParamName: {
+                    get: function() {
+                        return this.paramName;
+                    }
+                }
+            }  
+        },
+
         ctor: function (message, paramName, innerException) {
             this.$initialize();
             System.Exception.ctor.call(this, message || "Value does not fall within the expected range.", innerException);
             this.paramName = paramName ? paramName : null;
-        },
-
-        getParamName: function () {
-            return this.paramName;
         }
     });
 
@@ -200,6 +241,16 @@
     Bridge.define("System.ArgumentOutOfRangeException", {
         inherits: [System.ArgumentException],
 
+        config: {
+            properties: {
+                ActualValue: {
+                    get: function () {
+                        return this.actualValue;
+                    }
+                }
+            }
+        },
+
         ctor: function (paramName, message, innerException, actualValue) {
             this.$initialize();
 
@@ -214,10 +265,6 @@
             System.ArgumentException.ctor.call(this, message, paramName, innerException);
 
             this.actualValue = actualValue ? actualValue : null;
-        },
-
-        getActualValue: function () {
-            return this.actualValue;
         }
     });
 
@@ -277,7 +324,7 @@
 
         ctor: function (message, innerException) {
             this.$initialize();
-            System.ArithmeticException.ctor.call(this, message || "Division by 0.", innerException);
+            System.ArithmeticException.ctor.call(this, message || "Attempted to divide by zero.", innerException);
         }
     });
 
@@ -418,8 +465,19 @@
             }
 
             if (unhandledExceptions.length > 0) {
-                throw new System.AggregateException(this.getMessage(), unhandledExceptions);
+                throw new System.AggregateException(this.Message, unhandledExceptions);
             }
+        },
+
+        getBaseException: function() {
+            var back = this;
+            var backAsAggregate = this;
+            while (backAsAggregate != null && backAsAggregate.innerExceptions.getCount() === 1)
+            {
+                back = back.InnerException;
+                backAsAggregate = Bridge.as(back, System.AggregateException);
+            }
+            return back;  
         },
 
         flatten: function () {
@@ -455,7 +513,7 @@
                 }
             }
 
-            return new System.AggregateException(this.getMessage(), flattenedExceptions);
+            return new System.AggregateException(this.Message, flattenedExceptions);
         }
     });
 

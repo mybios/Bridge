@@ -261,7 +261,34 @@ namespace Bridge.Translator
             return insideTryFinally ? ((TryCatchStatement)target).FinallyBlock : null;
         }
 
-        public void WriteIdentifier(string name)
+        public CatchClause GetParentCatchBlock(AstNode node, bool stopOnLoops)
+        {
+            var insideCatch = false;
+            var target = node.GetParent(n =>
+            {
+                if (n is LambdaExpression || n is AnonymousMethodExpression || n is MethodDeclaration)
+                {
+                    return true;
+                }
+
+                if (stopOnLoops && (n is WhileStatement || n is ForeachStatement || n is ForStatement || n is DoWhileStatement))
+                {
+                    return true;
+                }
+
+                if (n is CatchClause)
+                {
+                    insideCatch = true;
+                    return true;
+                }
+
+                return false;
+            });
+
+            return insideCatch ? (CatchClause)target : null;
+        }
+
+        public void WriteIdentifier(string name, bool script = true)
         {
             var isValid = Helpers.IsValidIdentifier(name);
 
@@ -275,7 +302,15 @@ namespace Bridge.Translator
                 {
                     --this.Emitter.Output.Length;
                     this.Write("[");
-                    this.WriteScript(name);
+                    if (script)
+                    {
+                        this.WriteScript(name);
+                    }
+                    else
+                    {
+                        this.Write(name);
+                    }
+                    
                     this.Write("]");
                 }
             }

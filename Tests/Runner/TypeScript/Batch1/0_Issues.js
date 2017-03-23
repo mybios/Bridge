@@ -55,20 +55,20 @@ QUnit.test("#1640", function (assert) {
 });
 QUnit.test("#2029", function (assert) {
     var a = new (TypeScript.Issues.N2029)();
-    a.setValue1(25);
+    a.Value1 = 25;
     var i = a;
-    assert.deepEqual(i.getValue1(), 25);
+    assert.deepEqual(i.Value1, 25);
 });
 QUnit.test("#2030", function (assert) {
     var a = new (TypeScript.Issues.N2030Attribute)(true);
-    assert.deepEqual(a.getIsUnspecified(), true);
+    assert.deepEqual(a.IsUnspecified, true);
 });
 QUnit.test("#2031", function (assert) {
     var a = new (TypeScript.Issues.N2031DictionaryMap$2(String, Number).ctor)();
     a.add("1", 1);
     a.add("2", 2);
-    var f = a.getForward();
-    var r = a.getReverse();
+    var f = a.Forward;
+    var r = a.Reverse;
     assert.deepEqual(f.getItem("1"), 1, "1");
     assert.deepEqual(f.getItem("2"), 2, "2");
 });
@@ -78,16 +78,38 @@ QUnit.test("#2133", function (assert) {
 });
 QUnit.test("#2264", function (assert) {
     var a = new TypeScript.Issues.N2264(new (System.Collections.Generic.List$1(String))());
-    assert.notEqual(a.getValues(), null);
+    assert.notEqual(a.Values, null);
     var list = new (System.Collections.Generic.List$1(String));
     list.add("first");
     var b = new TypeScript.Issues.N2264(list);
-    assert.notEqual(b.getValues(), null);
-    var enumerator = b.getValues().getEnumerator();
+    assert.notEqual(b.Values, null);
+    var enumerator = b.Values.getEnumerator();
     enumerator.moveNext();
     assert.deepEqual(enumerator.getCurrent(), "first");
 });
 QUnit.test("#2438", function (assert) {
     var a = new TypeScript.Issues.N2438();
     assert.ok(a.isDefaultCtor);
+});
+QUnit.test("#2474", function (assert) {
+    var e1 = TypeScript.Issues.N2474.Enum.Value;
+    assert.equal(e1, 1, "Default (no [Enum])");
+    var e2 = TypeScript.Issues.N2474.ValueEnum.Value;
+    assert.equal(e2, 2, "ValueEnum");
+    var e3 = TypeScript.Issues.N2474.NameEnum.value;
+    assert.equal(e3, 3, "NameEnum");
+    var e4 = TypeScript.Issues.N2474.NameLowerCase.value;
+    assert.equal(e4, 4, "NameLowerCase");
+    var e5 = TypeScript.Issues.N2474.NamePreserveCase.Value;
+    assert.equal(e5, 5, "NamePreserveCase");
+    var e6 = TypeScript.Issues.N2474.NameUpperCase.VALUE;
+    assert.equal(e6, 6, "NameUpperCase");
+    var e7 = TypeScript.Issues.N2474.StringName.value;
+    assert.equal(e7, "value", "StringName");
+    var e8 = TypeScript.Issues.N2474.StringNameLowerCase.value;
+    assert.equal(e8, "value", "StringNameLowerCase");
+    var e9 = TypeScript.Issues.N2474.StringNamePreserveCase.Value;
+    assert.equal(e9, "Value", "StringNamePreserveCase");
+    var e10 = TypeScript.Issues.N2474.StringNameUpperCase.VALUE;
+    assert.equal(e10, "VALUE", "StringNameUpperCase");
 });

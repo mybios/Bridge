@@ -3,18 +3,40 @@
             inherits: [System.Collections.Generic.IDictionary$2(TKey, TValue), System.Collections.IDictionary],
 
             config: {
+                properties: {
+                    Keys: {
+                        get: function() {
+                            return this.getKeys();
+                        }
+                    },
+
+                    Values: {
+                        get: function () {
+                            return this.getValues();
+                        }
+                    },
+
+                    IsReadOnly: {
+                        get: function () {
+                            return this.getIsReadOnly();
+                        }
+                    }
+                },
                 alias: [
                     "getCount", "System$Collections$Generic$ICollection$1$getCount",
-                    "getKeys", "System$Collections$Generic$IDictionary$2$$getKeys",
-                    "getValues", "System$Collections$Generic$IDictionary$2$$getValues",
-                    "get", "System$Collections$Generic$IDictionary$2$$getItem",
-                    "set", "System$Collections$Generic$IDictionary$2$$setItem",
-                    "add", "System$Collections$Generic$IDictionary$2$$add",
-                    "containsKey", "System$Collections$Generic$IDictionary$2$$containsKey",
-                    "getEnumerator", "System$Collections$Generic$IEnumerable$1$System$Collections$Generic$KeyValuePair$2$$getEnumerator",
-                    "remove", "System$Collections$Generic$IDictionary$2$$remove",
-                    "tryGetValue", "System$Collections$Generic$IDictionary$2$$tryGetValue",
+                    "getKeys", "System$Collections$Generic$IDictionary$2$getKeys",
+                    "getValues", "System$Collections$Generic$IDictionary$2$getValues",
+                    "Keys", "System$Collections$Generic$IDictionary$2$Keys",
+                    "Values", "System$Collections$Generic$IDictionary$2$Values",
+                    "get", "System$Collections$Generic$IDictionary$2$getItem",
+                    "set", "System$Collections$Generic$IDictionary$2$setItem",
+                    "add", "System$Collections$Generic$IDictionary$2$add",
+                    "containsKey", "System$Collections$Generic$IDictionary$2$containsKey",
+                    "getEnumerator", "System$Collections$Generic$IEnumerable$1$System$Collections$Generic$KeyValuePair$2$getEnumerator",
+                    "remove", "System$Collections$Generic$IDictionary$2$remove",
+                    "tryGetValue", "System$Collections$Generic$IDictionary$2$tryGetValue",
                     "getIsReadOnly", "System$Collections$Generic$ICollection$1$getIsReadOnly",
+                    "IsReadOnly", "System$Collections$Generic$ICollection$1$IsReadOnly",
                     "addPair", "System$Collections$Generic$ICollection$1$add",
                     "copyTo", "System$Collections$Generic$ICollection$1$copyTo",
                     "clear", "System$Collections$Generic$ICollection$1$clear",
@@ -23,12 +45,15 @@
                     "copyTo", "System$Collections$ICollection$copyTo",
                     "get", "System$Collections$IDictionary$getItem",
                     "set", "System$Collections$IDictionary$setItem",
-                    "getValues", "System$Collections$IDictionary$getValues",
                     "containsKey", "System$Collections$IDictionary$containsKey",
                     "add", "System$Collections$IDictionary$add",
                     "remove", "System$Collections$IDictionary$remove",
                     "getIsReadOnly", "System$Collections$IDictionary$getIsReadOnly",
-                    "getKeys", "System$Collections$IDictionary$getKeys"
+                    "getKeys", "System$Collections$IDictionary$getKeys",
+                    "getValues", "System$Collections$IDictionary$getValues",
+                    "IsReadOnly", "System$Collections$IDictionary$IsReadOnly",
+                    "Keys", "System$Collections$IDictionary$Keys",
+                    "Values", "System$Collections$IDictionary$Values"
                 ]
             },
 
@@ -42,7 +67,7 @@
                         c;
 
                     while (e.moveNext()) {
-                        c = e.getCurrent();
+                        c = e.Current;
                         this.add(c.key, c.value);
                     }
                 } else if (Object.prototype.toString.call(obj) === '[object Object]') {

@@ -3,6 +3,19 @@
             inherits: [System.Collections.Generic.IList$1(T), System.Collections.IList],
 
             config: {
+                properties: {
+                  Count: {
+                      get: function() {
+                          return this.getCount();
+                      }
+                  },
+
+                  IsReadOnly: {
+                      get: function () {
+                          return this.getIsReadOnly();
+                      }
+                  }
+                },
                 alias: [
                 "getItem", "System$Collections$Generic$IList$1$getItem",
                 "getItem", "System$Collections$IList$getItem",
@@ -10,8 +23,12 @@
                 "setItem", "System$Collections$IList$setItem",
                 "getCount", "System$Collections$Generic$ICollection$1$getCount",
                 "getCount", "System$Collections$ICollection$getCount",
+                "Count", "System$Collections$Generic$ICollection$1$Count",
+                "Count", "System$Collections$ICollection$Count",
                 "getIsReadOnly", "System$Collections$Generic$ICollection$1$getIsReadOnly",
                 "getIsReadOnly", "System$Collections$IList$getIsReadOnly",
+                "IsReadOnly", "System$Collections$Generic$ICollection$1$IsReadOnly",
+                "IsReadOnly", "System$Collections$IList$IsReadOnly",
                 "add", "System$Collections$Generic$ICollection$1$add",
                 "add", "System$Collections$IList$add",
                 "clear", "System$Collections$Generic$ICollection$1$clear",
@@ -31,6 +48,10 @@
                 "removeAt", "System$Collections$Generic$IList$1$removeAt",
                 "removeAt", "System$Collections$IList$removeAt"
                 ]
+            },
+
+            toJSON: function() {
+                return this.items;
             },
 
             ctor: function (obj) {
