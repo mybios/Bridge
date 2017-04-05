@@ -1320,7 +1320,7 @@
 
             var name;
 
-            if (T && a != null && Bridge.isFunction(a[name = "System$IEquatable$1$" + Bridge.getTypeAlias(T) + "$equalsT"])) {
+            if (T && a != null && Bridge.isFunction(a[name = "System$IEquatable$1$equalsT"])) {
                 return a[name](b);
             }
 

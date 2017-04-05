@@ -312,12 +312,12 @@
 
             config: {
                 alias: [
-                  "getEnumerator", "System$Collections$Generic$IEnumerable$1$" + Bridge.getTypeAlias(T) + "$getEnumerator",
-                  "getCount", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$getCount",
-                  "add", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$add",
-                  "clear", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$clear",
-                  "contains", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$contains",
-                  "remove", "System$Collections$Generic$ICollection$1$" + Bridge.getTypeAlias(T) + "$remove"
+                  "getEnumerator", "System$Collections$Generic$IEnumerable$1$getEnumerator",
+                  "getCount", "System$Collections$Generic$ICollection$1$getCount",
+                  "add", "System$Collections$Generic$ICollection$1$add",
+                  "clear", "System$Collections$Generic$ICollection$1$clear",
+                  "contains", "System$Collections$Generic$ICollection$1$contains",
+                  "remove", "System$Collections$Generic$ICollection$1$remove"
                 ]
             },
 
