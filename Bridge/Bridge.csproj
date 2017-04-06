@@ -101,7 +101,6 @@
     <Compile Include="System\BitConverter.cs" />
     <Compile Include="System\ComponentModel\BrowsableAttribute.cs" />
     <Compile Include="System\ComponentModel\EditorBrowsableAttribute.cs" />
-    <Compile Include="System\SerializableAttribute.cs" />
     <Compile Include="Attributes\UnboxAttribute.cs" />
     <Compile Include="Attributes\GlobalMethodsAttribute.cs" />
     <Compile Include="Attributes\MixinAttribute.cs" />
